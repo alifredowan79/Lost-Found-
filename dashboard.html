@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - BUBT Lost and Found System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-brand">
+                <i class="fas fa-search-location"></i>
+                <h1>BUBT Lost & Found</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link active">Dashboard</a></li>
+                <li><a href="create-item.html" class="nav-link">Create Item</a></li>
+                <li><a href="report.html" class="nav-link">Report Items</a></li>
+                <li><a href="search.html" class="nav-link">Search Items</a></li>
+                <li><a href="invoice.html" class="nav-link">Generate Invoice</a></li>
+                <li><a href="about.html" class="nav-link">About</a></li>
+            </ul>
+            <div class="nav-user">
+                <span class="user-email" id="user-email">user@bubt.edu.bd</span>
+                <button class="btn btn-outline btn-sm" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+            <div class="nav-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="dashboard-section">
+            <div class="container">
+                <h2 class="section-title">BUBT System Dashboard</h2>
+                
+                <!-- Dashboard Stats -->
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-items">0</h3>
+                            <p>Total Items</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon lost">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="lost-items">0</h3>
+                            <p>Lost Items</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon found">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="found-items">0</h3>
+                            <p>Found Items</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon invoice">
+                            <i class="fas fa-file-invoice"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-invoices">0</h3>
+                            <p>Total Invoices</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Tabs -->
+                <div id="main-tabs" class="main-tabs">
+                    <button class="main-tab-btn active" data-tab="overview">Overview</button>
+                    <button class="main-tab-btn" data-tab="management">Item Management</button>
+                    <button class="main-tab-btn" data-tab="reports">Reports</button>
+                    <button class="main-tab-btn" data-tab="invoices">Invoices</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="main-tab-contents">
+                    <!-- Overview Tab -->
+                    <div id="overview-tab" class="main-tab-content active">
+                        <div class="overview-grid">
+                            <div class="overview-card">
+                                <h3>Recent Activity</h3>
+                                <div class="activity-list">
+                                    <div class="activity-item">
+                                        <i class="fas fa-plus-circle"></i>
+                                        <span>New lost item reported</span>
+                                        <small>2 hours ago</small>
+                                    </div>
+                                    <div class="activity-item">
+                                        <i class="fas fa-check-circle"></i>
+                                        <span>Item found and returned</span>
+                                        <small>5 hours ago</small>
+                                    </div>
+                                    <div class="activity-item">
+                                        <i class="fas fa-file-invoice"></i>
+                                        <span>Invoice generated</span>
+                                        <small>1 day ago</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="overview-card">
+                                <h3>Quick Actions</h3>
+                                <div class="quick-actions">
+                                    <button class="btn btn-primary" onclick="window.location.href='create-item.html'">
+                                        <i class="fas fa-plus"></i> Create New Item
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="window.location.href='search.html'">
+                                        <i class="fas fa-search"></i> Search Items
+                                    </button>
+                                    <button class="btn btn-success" onclick="window.location.href='invoice.html'">
+                                        <i class="fas fa-file-invoice"></i> Generate Invoice
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item Management Tab -->
+                    <div id="management-tab" class="main-tab-content">
+                        <div class="module-content" id="item-management">
+                            <div class="module-header">
+                                <h3>Item Management</h3>
+                                <button class="btn btn-primary" onclick="toggleModule('item-management')">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </div>
+                            <div class="module-tab-content active" id="add-item">
+                                <form id="add-item-form" class="dashboard-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="item-name">Item Name</label>
+                                            <input type="text" id="item-name" name="item-name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="item-category">Category</label>
+                                            <select id="item-category" name="item-category" required>
+                                                <option value="">Select Category</option>
+                                                <option value="electronics">Electronics</option>
+                                                <option value="jewelry">Jewelry</option>
+                                                <option value="clothing">Clothing</option>
+                                                <option value="documents">Documents</option>
+                                                <option value="keys">Keys</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="item-status">Status</label>
+                                            <select id="item-status" name="item-status" required>
+                                                <option value="">Select Status</option>
+                                                <option value="lost">Lost</option>
+                                                <option value="found">Found</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="item-date">Date</label>
+                                            <input type="date" id="item-date" name="item-date" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="item-location">Location</label>
+                                        <input type="text" id="item-location" name="item-location" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="item-description">Description</label>
+                                        <textarea id="item-description" name="item-description" rows="3" required></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="item-contact">Contact Information</label>
+                                        <input type="email" id="item-contact" name="item-contact" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Add Item</button>
+                                </form>
+                            </div>
+                            <div class="module-tab-content" id="view-items">
+                                <div class="table-container">
+                                    <table class="dashboard-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Item</th>
+                                                <th>Category</th>
+                                                <th>Status</th>
+                                                <th>Date</th>
+                                                <th>Location</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="items-table-body">
+                                            <!-- Items will be populated by JavaScript -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reports Tab -->
+                    <div id="reports-tab" class="main-tab-content">
+                        <div class="reports-grid">
+                            <div class="module-content" id="lost-products">
+                                <div class="module-header">
+                                    <h3>Lost Items</h3>
+                                    <button class="btn btn-primary" onclick="toggleModule('lost-products')">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </div>
+                                <div class="module-tab-content active" id="lost-items-content">
+                                    <div id="lost-items-grid" class="items-grid">
+                                        <!-- Lost items will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="module-content" id="found-products">
+                                <div class="module-header">
+                                    <h3>Found Items</h3>
+                                    <button class="btn btn-primary" onclick="toggleModule('found-products')">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </div>
+                                <div class="module-tab-content active" id="found-items-content">
+                                    <div id="found-items-grid" class="items-grid">
+                                        <!-- Found items will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invoices Tab -->
+                    <div id="invoices-tab" class="main-tab-content">
+                        <div class="module-content" id="invoice-generation">
+                            <div class="module-header">
+                                <h3>Invoice Generation</h3>
+                                <button class="btn btn-primary" onclick="toggleModule('invoice-generation')">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </div>
+                            <div class="module-tab-content active" id="invoice-form-content">
+                                <form id="invoice-form" class="dashboard-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="invoice-number">Invoice Number</label>
+                                            <input type="text" id="invoice-number" name="invoice-number" readonly>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="invoice-date">Date</label>
+                                            <input type="date" id="invoice-date" name="invoice-date" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="invoice-item">Select Found Item</label>
+                                            <select id="invoice-item" name="invoice-item" required>
+                                                <option value="">Choose a found item</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="invoice-amount">Processing Fee ($)</label>
+                                            <input type="number" id="invoice-amount" name="invoice-amount" value="5.00" step="0.01" min="0" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="invoice-notes">Notes</label>
+                                        <textarea id="invoice-notes" name="invoice-notes" rows="3"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Generate Invoice</button>
+                                </form>
+                            </div>
+                            <div class="module-tab-content" id="invoices-list-content">
+                                <div id="invoices-list">
+                                    <!-- Invoices will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+        // Check login status when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+        });
+
+        // Check if user is logged in
+        function checkLoginStatus() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            if (isLoggedIn !== 'true') {
+                // User is not logged in, redirect to login page
+                window.location.href = 'index.html';
+            } else {
+                // Display user email
+                const userEmail = localStorage.getItem('userEmail');
+                if (userEmail) {
+                    document.getElementById('user-email').textContent = userEmail;
+                }
+            }
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('userEmail');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

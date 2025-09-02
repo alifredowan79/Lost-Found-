@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Items - BUBT Lost and Found System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-brand">
+                <i class="fas fa-search-location"></i>
+                <h1>BUBT Lost & Found</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
+                <li><a href="create-item.html" class="nav-link">Create Item</a></li>
+                <li><a href="report.html" class="nav-link active">Report Items</a></li>
+                <li><a href="search.html" class="nav-link">Search Items</a></li>
+                <li><a href="invoice.html" class="nav-link">Generate Invoice</a></li>
+                <li><a href="about.html" class="nav-link">About</a></li>
+            </ul>
+            <div class="nav-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <!-- Report Section -->
+        <section id="report" class="report-section">
+            <div class="container">
+                <h2 class="section-title">Report Lost or Found Items</h2>
+                <p class="section-description">Help us maintain a comprehensive database of lost and found items on campus</p>
+                
+                <!-- Report Tabs -->
+                <div class="report-tabs">
+                    <button class="tab-btn active" data-tab="lost">Report Lost Item</button>
+                    <button class="tab-btn" data-tab="found">Report Found Item</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="tab-contents">
+                    <!-- Lost Item Tab -->
+                    <div id="lost-tab" class="tab-content active">
+                        <form class="report-form" id="lost-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="lost-item-name">Item Name *</label>
+                                    <input type="text" id="lost-item-name" name="item-name" placeholder="e.g., iPhone 13 Pro, Gold Necklace" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="lost-category">Category *</label>
+                                    <select id="lost-category" name="category" required>
+                                        <option value="">Select Category</option>
+                                        <option value="electronics">Electronics</option>
+                                        <option value="jewelry">Jewelry</option>
+                                        <option value="clothing">Clothing</option>
+                                        <option value="documents">Documents</option>
+                                        <option value="keys">Keys</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="lost-date">Date Lost *</label>
+                                    <input type="date" id="lost-date" name="date-lost" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="lost-location">Location Lost *</label>
+                                    <input type="text" id="lost-location" name="location" placeholder="e.g., Main Library, 2nd Floor" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="lost-description">Description *</label>
+                                <textarea id="lost-description" name="description" rows="4" placeholder="Provide detailed description of the item, including any identifying marks, colors, or special features" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="lost-contact">Contact Information *</label>
+                                <input type="email" id="lost-contact" name="contact" placeholder="your.email@bubt.edu.bd" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Submit Lost Item Report
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Found Item Tab -->
+                    <div id="found-tab" class="tab-content">
+                        <form class="report-form" id="found-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="found-item-name">Item Name *</label>
+                                    <input type="text" id="found-item-name" name="found-item-name" placeholder="e.g., iPhone 13 Pro, Gold Necklace" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="found-category">Category *</label>
+                                    <select id="found-category" name="found-category" required>
+                                        <option value="">Select Category</option>
+                                        <option value="electronics">Electronics</option>
+                                        <option value="jewelry">Jewelry</option>
+                                        <option value="clothing">Clothing</option>
+                                        <option value="documents">Documents</option>
+                                        <option value="keys">Keys</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="found-date">Date Found *</label>
+                                    <input type="date" id="found-date" name="date-found" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="found-location">Location Found *</label>
+                                    <input type="text" id="found-location" name="found-location" placeholder="e.g., Student Center, Cafeteria" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="found-description">Description *</label>
+                                <textarea id="found-description" name="found-description" rows="4" placeholder="Provide detailed description of the item, including any identifying marks, colors, or special features" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="found-contact">Your Contact Information *</label>
+                                <input type="email" id="found-contact" name="found-contact" placeholder="your.email@bubt.edu.bd" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-hand-holding-heart"></i> Submit Found Item Report
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+        // Check login status when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+        });
+
+        // Check if user is logged in
+        function checkLoginStatus() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            if (isLoggedIn !== 'true') {
+                // User is not logged in, redirect to login page
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>
