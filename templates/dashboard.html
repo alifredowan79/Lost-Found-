@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - BUBT Lost and Found System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-styles.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="header">
+    <nav class="nav">
+        <div class="nav-brand">
+            <i class="fas fa-search-location"></i>
+            <h1>BUBT Lost & Found</h1>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="{{ url_for('dashboard') }}" class="nav-link active">Dashboard</a></li>
+            <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
+            <li><a href="{{ url_for('report') }}" class="nav-link">Report Items</a></li>
+            <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
+            <li><a href="{{ url_for('invoice') }}" class="nav-link">Generate Invoice</a></li>
+            <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+        </ul>
+        <div class="nav-user">
+            <span class="user-email" id="user-email">{{ session.get('email', 'user@bubt.edu.bd') }}</span>
+            <button class="btn btn-outline btn-sm" onclick="window.location.href='{{ url_for('logout') }}'">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+        <div class="nav-toggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+</header>
+
+<main class="main">
+    <!-- Hero Section -->
+    <section class="dashboard-hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Welcome to BUBT Lost & Found Dashboard
+                </h1>
+                <p class="hero-description">
+                    Manage your lost and found items, generate invoices, and track system activities 
+                    with our comprehensive dashboard solution.
+                </p>
+                <div class="welcome-message">
+                    <h3 id="welcome-title">Welcome back, {{ username }}!</h3>
+                    <p id="welcome-subtitle">Here's what's happening with your system today.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dashboard Section -->
+    <section id="dashboard" class="dashboard-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">System Overview</h2>
+                <div class="section-actions">
+                    <button class="btn btn-outline" id="refresh-stats-btn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" onclick="window.location.href='{{ url_for('create_item') }}'">
+                        <i class="fas fa-plus"></i> Add New Item
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Dashboard Stats -->
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="total-items">{{ total_items }}</h3>
+                        <p>Total Items</p>
+                        <small class="stat-change positive">+12% from last month</small>
+                    </div>
+                </div>
+                <div class="stat-card lost">
+                    <div class="stat-icon lost">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="lost-items">{{ lost_items }}</h3>
+                        <p>Lost Items</p>
+                        <small class="stat-change negative">+5% from last month</small>
+                    </div>
+                </div>
+                <div class="stat-card found">
+                    <div class="stat-icon found">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="found-items">{{ found_items }}</h3>
+                        <p>Found Items</p>
+                        <small class="stat-change positive">+18% from last month</small>
+                    </div>
+                </div>
+                <div class="stat-card invoice">
+                    <div class="stat-icon invoice">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="total-invoices">{{ total_invoices }}</h3>
+                        <p>Total Invoices</p>
+                        <small class="stat-change positive">+25% from last month</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Tabs -->
+            <div id="main-tabs" class="main-tabs">
+                <button class="main-tab-btn active" data-tab="overview">Overview</button>
+                <button class="main-tab-btn" data-tab="management">Item Management</button>
+                <button class="main-tab-btn" data-tab="reports">Reports</button>
+                <button class="main-tab-btn" data-tab="invoices">Invoices</button>
+            </div>
+
+            <!-- Tab Contents -->
+            <div class="main-tab-contents">
+                <!-- Overview Tab -->
+                <div id="overview-tab" class="main-tab-content active">
+                    <div class="overview-grid">
+                        <div class="overview-card">
+                            <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                            <div class="activity-list" id="activity-list">
+                                {% for item in recent_items[:5] %}
+                                <div class="activity-item">
+                                    <i class="fas fa-{{ 'exclamation-triangle' if item.status == 'lost' else 'check-circle' }}"></i>
+                                    <span>{{ item.status|title }} item: {{ item.name }}</span>
+                                    <small>{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else item.date }}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="overview-card">
+                            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                            <div class="quick-actions">
+                                <button class="btn btn-primary" onclick="window.location.href='{{ url_for('create_item') }}'">
+                                    <i class="fas fa-plus"></i> Create New Item
+                                </button>
+                                <button class="btn btn-secondary" onclick="window.location.href='{{ url_for('search') }}'">
+                                    <i class="fas fa-search"></i> Search Items
+                                </button>
+                                <button class="btn btn-success" onclick="window.location.href='{{ url_for('invoice') }}'">
+                                    <i class="fas fa-file-invoice"></i> Generate Invoice
+                                </button>
+                                <button class="btn btn-outline" onclick="window.location.href='{{ url_for('report') }}'">
+                                    <i class="fas fa-flag"></i> Report Issue
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Overview Cards -->
+                    <div class="overview-grid">
+                        <div class="overview-card">
+                            <h3><i class="fas fa-chart-line"></i> System Health</h3>
+                            <div class="health-indicators">
+                                <div class="health-item">
+                                    <span class="health-label">Database</span>
+                                    <span class="health-status online">Online</span>
+                                </div>
+                                <div class="health-item">
+                                    <span class="health-label">Storage</span>
+                                    <span class="health-status online">85%</span>
+                                </div>
+                                <div class="health-item">
+                                    <span class="health-label">Performance</span>
+                                    <span class="health-status warning">Good</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overview-card">
+                            <h3><i class="fas fa-calendar-alt"></i> Today's Summary</h3>
+                            <div class="summary-stats">
+                                <div class="summary-item">
+                                    <span class="summary-number" id="today-lost">{{ today_lost }}</span>
+                                    <span class="summary-label">Items Lost</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-number" id="today-found">{{ today_found }}</span>
+                                    <span class="summary-label">Items Found</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-number" id="today-invoices">{{ today_invoices }}</span>
+                                    <span class="summary-label">Invoices</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item Management Tab -->
+                <div id="management-tab" class="main-tab-content">
+                    <div class="module-content" id="item-management">
+                        <div class="module-header">
+                            <h3>Item Management</h3>
+                            <button class="btn btn-primary" onclick="toggleModule('item-management')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </div>
+                        <div class="module-tab-content active" id="add-item">
+                            <form id="add-item-form" class="dashboard-form" method="POST" action="{{ url_for('create_item') }}">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="item-name">Item Name</label>
+                                        <input type="text" id="item-name" name="item-name" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="item-category">Category</label>
+                                        <select id="item-category" name="item-category" required>
+                                            <option value="">Select Category</option>
+                                            <option value="electronics">Electronics</option>
+                                            <option value="jewelry">Jewelry</option>
+                                            <option value="clothing">Clothing</option>
+                                            <option value="documents">Documents</option>
+                                            <option value="keys">Keys</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="item-status">Status</label>
+                                        <select id="item-status" name="item-status" required>
+                                            <option value="">Select Status</option>
+                                            <option value="lost">Lost</option>
+                                            <option value="found">Found</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="item-date">Date</label>
+                                        <input type="date" id="item-date" name="item-date" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="item-location">Location</label>
+                                    <input type="text" id="item-location" name="item-location" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="item-description">Description</label>
+                                    <textarea id="item-description" name="item-description" rows="3" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="item-contact">Contact Information</label>
+                                    <input type="email" id="item-contact" name="item-contact" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Add Item</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div id="reports-tab" class="main-tab-content">
+                    <div class="reports-grid">
+                        <div class="module-content" id="lost-products">
+                            <div class="module-header">
+                                <h3>Lost Items</h3>
+                                <button class="btn btn-primary" onclick="toggleModule('lost-products')">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </div>
+                            <div class="module-tab-content active" id="lost-items-content">
+                                <div id="lost-items-grid" class="items-grid">
+                                    <!-- Lost items loaded via API -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="module-content" id="found-products">
+                            <div class="module-header">
+                                <h3>Found Items</h3>
+                                <button class="btn btn-primary" onclick="toggleModule('found-products')">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </div>
+                            <div class="module-tab-content active" id="found-items-content">
+                                <div id="found-items-grid" class="items-grid">
+                                    <!-- Found items loaded via API -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoices Tab -->
+                <div id="invoices-tab" class="main-tab-content">
+                    <div class="module-content" id="invoice-generation">
+                        <div class="module-header">
+                            <h3>Invoice Generation</h3>
+                            <button class="btn btn-primary" onclick="window.location.href='{{ url_for('invoice') }}'">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+<script>
+    // Load items via API
+    async function loadItems() {
+        const response = await fetch('{{ url_for("api_items") }}');
+        const items = await response.json();
+        
+        const lostItems = items.filter(item => item.status === 'lost');
+        const foundItems = items.filter(item => item.status === 'found');
+        
+        // Populate grids
+        document.getElementById('lost-items-grid').innerHTML = lostItems.map(item => 
+            `<div class="lost-item-card">
+                <div class="item-card-header">
+                    <div class="item-card-title">${item.name}</div>
+                    <span class="item-card-status lost">LOST</span>
+                </div>
+                <div class="item-card-details">
+                    <p><strong>Category:</strong> ${item.category}</p>
+                    <p><strong>Date Lost:</strong> ${item.date}</p>
+                    <p><strong>Location:</strong> ${item.location}</p>
+                    <p><strong>Contact:</strong> ${item.contact}</p>
+                </div>
+            </div>`
+        ).join('');
+        
+        document.getElementById('found-items-grid').innerHTML = foundItems.map(item => 
+            `<div class="found-item-card">
+                <div class="item-card-header">
+                    <div class="item-card-title">${item.name}</div>
+                    <span class="item-card-status found">FOUND</span>
+                </div>
+                <div class="item-card-details">
+                    <p><strong>Category:</strong> ${item.category}</p>
+                    <p><strong>Date Found:</strong> ${item.date}</p>
+                    <p><strong>Location:</strong> ${item.location}</p>
+                    <p><strong>Contact:</strong> ${item.contact}</p>
+                </div>
+            </div>`
+        ).join('');
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        loadItems();
+    });
+</script>
+{% endblock %}

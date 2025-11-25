@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BUBT Lost and Found System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    {% block extra_css %}{% endblock %}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages" style="position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 400px;">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}" style="padding: 15px 20px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); animation: slideIn 0.3s ease-out;">
+                        <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'error' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+                        <span>{{ message }}</span>
+                        <button onclick="this.parentElement.remove()" style="float: right; background: none; border: none; cursor: pointer; font-size: 18px; opacity: 0.7;">&times;</button>
+                    </div>
+                {% endfor %}
+            </div>
+            <style>
+                .flash-success { background: #10b981; color: white; }
+                .flash-error { background: #ef4444; color: white; }
+                .flash-warning { background: #f59e0b; color: white; }
+                .flash-info { background: #3b82f6; color: white; }
+                @keyframes slideIn {
+                    from { transform: translateX(400px); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                .flash-message {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+            </style>
+            <script>
+                // Auto-remove flash messages after 5 seconds
+                setTimeout(function() {
+                    document.querySelectorAll('.flash-message').forEach(function(msg) {
+                        msg.style.animation = 'slideOut 0.3s ease-out';
+                        setTimeout(function() { msg.remove(); }, 300);
+                    });
+                }, 5000);
+            </script>
+        {% endif %}
+    {% endwith %}
+    
+    {% block content %}{% endblock %}
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+
