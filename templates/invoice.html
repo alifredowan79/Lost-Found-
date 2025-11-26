@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generate Invoice - BUBT Lost and Found System</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="invoice-styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/invoice-styles.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -17,12 +17,12 @@
                 <h1>BUBT Lost & Found</h1>
             </div>
             <ul class="nav-menu">
-                <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
-                <li><a href="create-item.html" class="nav-link">Create Item</a></li>
-                <li><a href="report.html" class="nav-link">Report Items</a></li>
-                <li><a href="search.html" class="nav-link">Search Items</a></li>
-                <li><a href="invoice.html" class="nav-link active">Generate Invoice</a></li>
-                <li><a href="about.html" class="nav-link">About</a></li>
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+                <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
+                <li><a href="{{ url_for('report') }}" class="nav-link">Report Items</a></li>
+                <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
+                <li><a href="{{ url_for('invoice') }}" class="nav-link active">Generate Invoice</a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
             </ul>
             <div class="nav-toggle">
                 <span></span>
@@ -644,7 +644,7 @@
                 <html>
                     <head>
                         <title>Invoice Print</title>
-                        <link rel="stylesheet" href="styles.css">
+                        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
                         <style>
                             body { margin: 20px; }
                             .modal-header, .modal-footer, .btn { display: none; }

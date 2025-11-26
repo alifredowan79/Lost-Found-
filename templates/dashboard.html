@@ -20,6 +20,11 @@
             <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
             <li><a href="{{ url_for('invoice') }}" class="nav-link">Generate Invoice</a></li>
             <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+            {% if is_admin %}
+            <li><a href="{{ url_for('admin_files') }}" class="nav-link" style="color: #f59e0b;">
+                <i class="fas fa-shield-alt"></i> Admin Files
+            </a></li>
+            {% endif %}
         </ul>
         <div class="nav-user">
             <span class="user-email" id="user-email">{{ session.get('email', 'user@bubt.edu.bd') }}</span>
@@ -155,6 +160,11 @@
                                 <button class="btn btn-outline" onclick="window.location.href='{{ url_for('report') }}'">
                                     <i class="fas fa-flag"></i> Report Issue
                                 </button>
+                                {% if is_admin %}
+                                <button class="btn btn-warning" onclick="window.location.href='{{ url_for('admin_files') }}'" style="background: #f59e0b; color: white; border-color: #f59e0b;">
+                                    <i class="fas fa-shield-alt"></i> Admin Files
+                                </button>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

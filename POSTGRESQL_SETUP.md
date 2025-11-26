@@ -1,199 +1,130 @@
-# PostgreSQL Integration Guide
+# PostgreSQL Setup Guide for BUBT Lost & Found System
 
-## ✅ PostgreSQL Database Integration
+## Step 1: Install PostgreSQL
 
-The application now supports PostgreSQL database with SQLite as fallback.
+### Windows:
+1. Download PostgreSQL from: https://www.postgresql.org/download/windows/
+2. Run the installer
+3. During installation:
+   - Remember the password you set for the `postgres` user
+   - Default port is `5432` (keep this)
+   - Install pgAdmin 4 (comes with PostgreSQL)
 
-## Installation
-
-### 1. Install PostgreSQL
-
-**Ubuntu/Debian:**
+### Verify Installation:
 ```bash
-sudo apt update
-sudo apt install postgresql postgresql-contrib -y
+psql --version
 ```
 
-**Start PostgreSQL service:**
+## Step 2: Create Database in PostgreSQL
+
+### Method 1: Using pgAdmin (GUI)
+1. Open **pgAdmin 4**
+2. Connect to your PostgreSQL server:
+   - Right-click on "Servers" → "Create" → "Server"
+   - **General Tab:**
+     - Name: `BUBT Server` (or any name)
+   - **Connection Tab:**
+     - Host: `localhost`
+     - Port: `5432`
+     - Username: `postgres`
+     - Password: (your PostgreSQL password)
+   - Click "Save"
+3. Create Database:
+   - Expand your server → Right-click "Databases" → "Create" → "Database"
+   - **Database:** `lost_found`
+   - **Owner:** `postgres`
+   - Click "Save"
+
+### Method 2: Using Command Line (psql)
 ```bash
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-```
+# Connect to PostgreSQL
+psql -U postgres
 
-### 2. Install Python Dependencies
-
-```bash
-pip3 install --break-system-packages -r requirements.txt
-```
-
-Or install manually:
-```bash
-pip3 install --break-system-packages psycopg2-binary python-dotenv
-```
-
-### 3. Create PostgreSQL Database
-
-```bash
-# Switch to postgres user
-sudo -u postgres psql
-
-# Create database and user
+# Create database
 CREATE DATABASE lost_found;
-CREATE USER lost_found_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE lost_found TO lost_found_user;
-ALTER USER lost_found_user CREATEDB;
+
+# Exit
 \q
 ```
 
-### 4. Configure Environment Variables
+## Step 3: Configure Your Application
 
-**Option A: Using .env file (Recommended)**
+1. **Create `.env` file** in your project root:
+   ```env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=lost_found
+   DB_USER=postgres
+   DB_PASSWORD=your_postgres_password
+   SECRET_KEY=your-secret-key-here
+   ```
 
-1. Copy the example file:
+2. **Install Python Dependencies:**
+   ```bash
+   pip install psycopg2-binary
+   ```
+   
+   If `psycopg2-binary` fails to install (needs Visual C++), try:
+   ```bash
+   pip install psycopg2
+   ```
+   
+   Or use the pre-compiled wheel:
+   ```bash
+   pip install psycopg2-binary --only-binary :all:
+   ```
+
+## Step 4: Test Connection
+
+Run your Flask app:
 ```bash
-cp .env.example .env
+python app.py
 ```
 
-2. Edit `.env` file:
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=lost_found
-DB_USER=lost_found_user
-DB_PASSWORD=your_secure_password
-SECRET_KEY=your-secret-key-change-in-production
+You should see:
+```
+✅ Connected to PostgreSQL database: lost_found
 ```
 
-**Option B: Using Environment Variables**
+## Step 5: Connect with pgAdmin
 
+1. Open **pgAdmin 4**
+2. Your server should already be connected (from Step 2)
+3. Expand: `Servers` → `Your Server` → `Databases` → `lost_found`
+4. You can now:
+   - View tables
+   - Run SQL queries
+   - Manage data
+
+## Troubleshooting
+
+### Error: "psycopg2-binary installation failed"
+**Solution:** Install Visual C++ Build Tools or use:
 ```bash
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_NAME=lost_found
-export DB_USER=lost_found_user
-export DB_PASSWORD=your_secure_password
-export SECRET_KEY=your-secret-key
+pip install psycopg2
 ```
 
-**Option C: Using Full Connection String**
+### Error: "Connection refused"
+**Solution:** 
+- Check if PostgreSQL service is running
+- Verify port 5432 is not blocked by firewall
+- Check `DB_HOST` and `DB_PORT` in `.env`
 
-```bash
-export DATABASE_URL=postgresql://lost_found_user:password@localhost:5432/lost_found
-```
-
-### 5. Initialize Database
-
-```bash
-python3 -c "from app import init_db; init_db()"
-```
-
-Or the database will be automatically created when you run the app for the first time.
-
-## Configuration Priority
-
-The app checks for database configuration in this order:
-
-1. `DATABASE_URL` environment variable (full connection string)
-2. Individual `DB_*` environment variables
-3. `.env` file
-4. SQLite fallback (if PostgreSQL not configured)
-
-## Testing Connection
-
-```bash
-python3 -c "
-from app import app, db
-with app.app_context():
-    try:
-        db.engine.connect()
-        print('✅ PostgreSQL connection successful!')
-    except Exception as e:
-        print(f'❌ Connection failed: {e}')
-"
-```
-
-## Migration from SQLite to PostgreSQL
-
-If you have existing SQLite data:
-
-1. **Export data from SQLite:**
-```bash
-sqlite3 lost_found.db .dump > backup.sql
-```
-
-2. **Import to PostgreSQL:**
-```bash
-psql -U lost_found_user -d lost_found < backup.sql
-```
-
-Or use a migration tool like Flask-Migrate.
-
-## Common Issues
-
-### Issue 1: "psycopg2 not found"
+### Error: "Authentication failed"
 **Solution:**
-```bash
-pip3 install --break-system-packages psycopg2-binary
-```
+- Verify username and password in `.env`
+- Check PostgreSQL authentication settings in `pg_hba.conf`
 
-### Issue 2: "Connection refused"
+### Error: "Database does not exist"
 **Solution:**
-- Check if PostgreSQL is running: `sudo systemctl status postgresql`
-- Check firewall settings
-- Verify connection details in `.env`
+- Create the database first (see Step 2)
+- Verify `DB_NAME` in `.env` matches the created database
 
-### Issue 3: "Authentication failed"
-**Solution:**
-- Verify username and password
-- Check `pg_hba.conf` for authentication method
-- Ensure user has proper permissions
+## Default Users Created
 
-### Issue 4: "Database does not exist"
-**Solution:**
-```bash
-sudo -u postgres createdb lost_found
-```
-
-## Production Setup
-
-For production, use environment variables or a secure configuration management system:
-
-```bash
-# Set in your deployment environment
-export DATABASE_URL=postgresql://user:pass@host:5432/dbname
-export SECRET_KEY=your-very-secure-secret-key
-```
-
-## Connection Pooling
-
-The app is configured with connection pooling:
-- `pool_pre_ping`: Checks connections before using
-- `pool_recycle`: Recycles connections after 300 seconds
-- `connect_timeout`: 10 seconds timeout
-
-## Backup and Restore
-
-**Backup:**
-```bash
-pg_dump -U lost_found_user lost_found > backup.sql
-```
-
-**Restore:**
-```bash
-psql -U lost_found_user lost_found < backup.sql
-```
-
-## Monitoring
-
-Check database connections:
-```sql
-SELECT count(*) FROM pg_stat_activity WHERE datname = 'lost_found';
-```
-
-## Notes
-
-- The app will automatically fallback to SQLite if PostgreSQL is not configured
-- All database models work the same with PostgreSQL
-- No code changes needed - just configuration
-- PostgreSQL provides better performance and features for production
+After running the app, these default users will be created:
+- Username: `admin`, Password: `admin123`
+- Username: `user`, Password: `user123`
+- Username: `test`, Password: `test123`
+- Username: `redowan.alif`, Password: `password123`
 

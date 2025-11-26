@@ -1,8 +1,3 @@
-"""
-BUBT Lost and Found System - Flask Application
-Main application file with routes and business logic
-"""
-
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,7 +7,10 @@ import json
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+# Get the directory where this script is located
+basedir = os.path.abspath(os.path.dirname(__file__))
+env_path = os.path.join(basedir, '.env')
+load_dotenv(dotenv_path=env_path)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
@@ -20,9 +18,12 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-pr
 # Database configuration - PostgreSQL
 # Priority: Environment variable > .env file > SQLite fallback
 database_url = os.getenv('DATABASE_URL')
+use_sqlite = False
+
 if database_url:
     # PostgreSQL from environment variable
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print(f"Using PostgreSQL database from DATABASE_URL")
 elif os.getenv('DB_HOST'):
     # PostgreSQL from individual environment variables
     db_user = os.getenv('DB_USER', 'postgres')
@@ -31,37 +32,57 @@ elif os.getenv('DB_HOST'):
     db_port = os.getenv('DB_PORT', '5432')
     db_name = os.getenv('DB_NAME', 'lost_found')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
+    print(f"Connected to PostgreSQL database: {db_name} on {db_host}:{db_port}")
 else:
     # Fallback to SQLite if PostgreSQL not configured
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///lost_found.db'
-    print("⚠️  PostgreSQL not configured. Using SQLite database.")
+    use_sqlite = True
+    print("WARNING: PostgreSQL not configured. Using SQLite database.")
+    print("TIP: To use PostgreSQL, create a .env file with DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-    'connect_args': {
-        'connect_timeout': 10
+
+# Configure engine options based on database type
+if use_sqlite:
+    # SQLite-specific configuration
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'connect_args': {
+            'check_same_thread': False  # Allow SQLite to work with Flask's threading
+        }
     }
-}
+else:
+    # PostgreSQL-specific configuration
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'connect_args': {
+            'connect_timeout': 10
+        }
+    }
 
 db = SQLAlchemy(app)
 
 # Database Models
 class User(db.Model):
     """User model for authentication"""
+    __tablename__ = 'userid'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     remember_me = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_admin = db.Column(db.Boolean, default=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def is_admin_user(self):
+        """Check if user is admin"""
+        return self.is_admin or self.username == 'admin'
 
 
 class Item(db.Model):
@@ -198,37 +219,55 @@ def login():
             flash(error_msg, 'error')
             return render_template('login.html')
         
-        # Try to find user by username or email
-        user = User.query.filter(
-            (User.username == username_or_email) | (User.email == username_or_email)
-        ).first()
-        
-        # Authenticate user
-        if user and user.check_password(password):
-            # Login successful
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['email'] = user.email
+        # Try to find user by username or email from userid table
+        # Note: User.query automatically uses the 'userid' table (defined in __tablename__)
+        try:
+            user = User.query.filter(
+                (User.username == username_or_email) | (User.email == username_or_email)
+            ).first()
             
-            if remember_me:
-                session.permanent = True
-                app.permanent_session_lifetime = timedelta(days=30)
+            # Debug: Check if user exists
+            if not user:
+                error_msg = f'User "{username_or_email}" not found in database'
+                if is_json:
+                    return jsonify({'success': False, 'message': 'Invalid username/email or password'}), 401
+                flash('Invalid username/email or password', 'error')
+                return render_template('login.html')
             
+            # Authenticate user - password check uses userid table
+            if user.check_password(password):
+                # Login successful
+                session['user_id'] = user.id
+                session['username'] = user.username
+                session['email'] = user.email
+                
+                if remember_me:
+                    session.permanent = True
+                    app.permanent_session_lifetime = timedelta(days=30)
+                
+                if is_json:
+                    return jsonify({
+                        'success': True, 
+                        'message': 'Login successful',
+                        'redirect': url_for('dashboard')
+                    })
+                
+                flash('Login successful!', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                # Password mismatch
+                error_msg = 'Invalid password'
+                if is_json:
+                    return jsonify({'success': False, 'message': 'Invalid username/email or password'}), 401
+                flash('Invalid username/email or password', 'error')
+                return render_template('login.html')
+                
+        except Exception as e:
+            # Log the error for debugging
+            app.logger.error(f'Login error: {str(e)}')
+            error_msg = 'An error occurred during login. Please try again.'
             if is_json:
-                return jsonify({
-                    'success': True, 
-                    'message': 'Login successful',
-                    'redirect': url_for('dashboard')
-                })
-            
-            flash('Login successful!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            # Invalid credentials
-            error_msg = 'Invalid username/email or password'
-            if is_json:
-                return jsonify({'success': False, 'message': error_msg}), 401
-            
+                return jsonify({'success': False, 'message': error_msg}), 500
             flash(error_msg, 'error')
             return render_template('login.html')
     
@@ -347,6 +386,10 @@ def dashboard():
     # Get recent items
     recent_items = Item.query.order_by(Item.created_at.desc()).limit(10).all()
     
+    # Check if user is admin
+    user = User.query.get(session.get('user_id'))
+    is_admin = user.is_admin_user() if user else False
+    
     return render_template('dashboard.html',
                          total_items=total_items,
                          lost_items=lost_items,
@@ -356,7 +399,8 @@ def dashboard():
                          today_found=today_found,
                          today_invoices=today_invoices,
                          recent_items=recent_items,
-                         username=session.get('username', 'User'))
+                         username=session.get('username', 'User'),
+                         is_admin=is_admin)
 
 
 @app.route('/report', methods=['GET', 'POST'])
@@ -555,6 +599,96 @@ def about():
     return render_template('about.html')
 
 
+def require_admin():
+    """Check if current user is admin"""
+    if 'user_id' not in session:
+        return False
+    user = User.query.get(session['user_id'])
+    if not user:
+        return False
+    return user.is_admin_user()
+
+
+@app.route('/admin/files')
+def admin_files():
+    """Admin-only page to view created files"""
+    # Check if user is logged in
+    if 'user_id' not in session:
+        flash('Please login to access this page', 'warning')
+        return redirect(url_for('login'))
+    
+    # Check if user is admin
+    if not require_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # List of created utility files
+    created_files = [
+        {
+            'name': 'reset_user_password.py',
+            'description': 'Password reset utility - Reset user passwords',
+            'usage': 'python reset_user_password.py reset <username> <password>',
+            'category': 'Utility Script'
+        },
+        {
+            'name': 'view_users.py',
+            'description': 'User information viewer - View all users and test passwords',
+            'usage': 'python view_users.py list',
+            'category': 'Utility Script'
+        },
+        {
+            'name': 'start-server.bat',
+            'description': 'Windows batch file to start Flask server',
+            'usage': 'Double-click or run from command prompt',
+            'category': 'Startup Script'
+        },
+        {
+            'name': 'setup-postgresql.bat',
+            'description': 'PostgreSQL setup automation script',
+            'usage': 'Double-click to run setup wizard',
+            'category': 'Setup Script'
+        },
+        {
+            'name': 'run.bat',
+            'description': 'Quick server startup script',
+            'usage': 'Double-click to start server',
+            'category': 'Startup Script'
+        },
+        {
+            'name': 'start-server.ps1',
+            'description': 'PowerShell script to start Flask server',
+            'usage': '.\start-server.ps1',
+            'category': 'Startup Script'
+        },
+        {
+            'name': 'POSTGRESQL_SETUP.md',
+            'description': 'Detailed PostgreSQL setup guide',
+            'usage': 'Read for PostgreSQL installation instructions',
+            'category': 'Documentation'
+        },
+        {
+            'name': 'QUICK_POSTGRES_SETUP.md',
+            'description': 'Quick PostgreSQL setup guide',
+            'usage': 'Quick reference for PostgreSQL setup',
+            'category': 'Documentation'
+        },
+        {
+            'name': 'HOW_TO_RUN.md',
+            'description': 'Instructions on how to run the project',
+            'usage': 'Read for running instructions',
+            'category': 'Documentation'
+        },
+        {
+            'name': 'USER_PASSWORD_GUIDE.md',
+            'description': 'Guide for managing user passwords',
+            'usage': 'Read for password management instructions',
+            'category': 'Documentation'
+        }
+    ]
+    
+    return render_template('admin_files.html', files=created_files, username=session.get('username', 'Admin'))
+
+
 # API Routes
 @app.route('/api/items', methods=['GET', 'POST'])
 def api_items():
@@ -698,7 +832,8 @@ def init_db():
                 {
                     'username': 'admin',
                     'email': 'admin@bubt.edu.bd',
-                    'password': 'admin123'
+                    'password': 'admin123',
+                    'is_admin': True
                 },
                 {
                     'username': 'user',
@@ -720,13 +855,14 @@ def init_db():
             for user_data in default_users:
                 user = User(
                     username=user_data['username'],
-                    email=user_data['email']
+                    email=user_data['email'],
+                    is_admin=user_data.get('is_admin', False)
                 )
                 user.set_password(user_data['password'])
                 db.session.add(user)
             
             db.session.commit()
-            print("✅ Default users created successfully!")
+            print("Default users created successfully!")
         
         # Add sample items if database is empty
         if Item.query.count() == 0:
@@ -767,7 +903,7 @@ def init_db():
                 db.session.add(item)
             
             db.session.commit()
-            print("✅ Sample items created successfully!")
+            print("Sample items created successfully!")
 
 
 if __name__ == '__main__':
