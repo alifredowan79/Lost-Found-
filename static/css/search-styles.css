@@ -1,8 +1,14 @@
 /* Enhanced Search Page Styles */
 
+/* Body Background */
+body {
+    background-color: #ffffff;
+    min-height: 100vh;
+}
+
 /* Hero Section */
 .search-hero {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 4rem 0;
     text-align: center;

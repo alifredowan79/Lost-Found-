@@ -12,19 +12,28 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 env_path = os.path.join(basedir, '.env')
 load_dotenv(dotenv_path=env_path)
 
+
+def env_bool(var_name, default=False):
+    """Return True if environment variable is truthy."""
+    value = os.getenv(var_name)
+    if value is None:
+        return default
+    return value.strip().lower() in ('1', 'true', 'yes', 'on')
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 
-# Database configuration - PostgreSQL
-# Priority: Environment variable > .env file > SQLite fallback
+# Database configuration
+# Priority: Explicit SQLite flag > DATABASE_URL > PostgreSQL env vars > SQLite fallback
 database_url = os.getenv('DATABASE_URL')
+force_sqlite = env_bool('USE_SQLITE')
 use_sqlite = False
 
-if database_url:
-    # PostgreSQL from environment variable
+if not force_sqlite and database_url:
+    # Database URL provided explicitly (supports PostgreSQL, etc.)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print(f"Using PostgreSQL database from DATABASE_URL")
-elif os.getenv('DB_HOST'):
+    print("Using database from DATABASE_URL")
+elif not force_sqlite and os.getenv('DB_HOST'):
     # PostgreSQL from individual environment variables
     db_user = os.getenv('DB_USER', 'postgres')
     db_password = os.getenv('DB_PASSWORD', '')
@@ -34,11 +43,19 @@ elif os.getenv('DB_HOST'):
     app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
     print(f"Connected to PostgreSQL database: {db_name} on {db_host}:{db_port}")
 else:
-    # Fallback to SQLite if PostgreSQL not configured
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///lost_found.db'
+    # SQLite configuration (explicit or fallback)
+    sqlite_path = os.getenv('SQLITE_DB_PATH', os.path.join(basedir, 'lost_found.db'))
+    if sqlite_path.startswith('sqlite:'):
+        sqlite_uri = sqlite_path
+    else:
+        sqlite_uri = f"sqlite:///{sqlite_path}"
+    app.config['SQLALCHEMY_DATABASE_URI'] = sqlite_uri
     use_sqlite = True
-    print("WARNING: PostgreSQL not configured. Using SQLite database.")
-    print("TIP: To use PostgreSQL, create a .env file with DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD")
+    if force_sqlite:
+        print(f"Using SQLite database as requested via USE_SQLITE (path: {sqlite_path}).")
+    else:
+        print("WARNING: PostgreSQL not configured. Using SQLite database.")
+        print("TIP: To use PostgreSQL, create a .env file with DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -194,8 +211,8 @@ def generate_invoice_number():
 # Routes
 @app.route('/')
 def index():
-    """Home page - redirects to login"""
-    return redirect(url_for('login'))
+    """Welcome page - landing page before login"""
+    return render_template('welcome.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -209,7 +226,10 @@ def login():
         username_or_email = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         remember_me = request.form.get('rememberMe')
-        is_json = request.headers.get('Content-Type') == 'application/json' or request.is_json
+        # Check if this is an AJAX/JSON request
+        is_json = (request.headers.get('Content-Type') == 'application/json' or 
+                  request.is_json or 
+                  request.headers.get('X-Requested-With') == 'XMLHttpRequest')
         
         # Validate input
         if not username_or_email or not password:
@@ -264,7 +284,11 @@ def login():
                 
         except Exception as e:
             # Log the error for debugging
+            import traceback
             app.logger.error(f'Login error: {str(e)}')
+            app.logger.error(f'Traceback: {traceback.format_exc()}')
+            print(f'[ERROR] Login exception: {str(e)}')
+            print(f'[ERROR] Traceback: {traceback.format_exc()}')
             error_msg = 'An error occurred during login. Please try again.'
             if is_json:
                 return jsonify({'success': False, 'message': error_msg}), 500
@@ -410,33 +434,74 @@ def report():
         flash('Please login to report items', 'warning')
         return redirect(url_for('login'))
     
-    if request.method == 'POST':
-        form_type = request.form.get('form_type', 'lost')
+    try:
+        if request.method == 'POST':
+            form_type = request.form.get('form_type', 'lost')
+            
+            try:
+                # Get form data based on form type
+                if form_type == 'lost':
+                    item_name = request.form.get('item-name', '').strip()
+                    item_category = request.form.get('category', '').strip()
+                    item_date_str = request.form.get('date-lost', '').strip()
+                    item_location = request.form.get('location', '').strip()
+                    item_description = request.form.get('description', '').strip()
+                    item_contact = request.form.get('contact', '').strip()
+                    item_phone = request.form.get('phone', '').strip()
+                else:  # found
+                    item_name = request.form.get('found-item-name', '').strip()
+                    item_category = request.form.get('found-category', '').strip()
+                    item_date_str = request.form.get('date-found', '').strip()
+                    item_location = request.form.get('found-location', '').strip()
+                    item_description = request.form.get('found-description', '').strip()
+                    item_contact = request.form.get('found-contact', '').strip()
+                    item_phone = request.form.get('found-phone', '').strip()
+                
+                # Validate required fields
+                if not all([item_name, item_category, item_date_str, item_location, item_description, item_contact]):
+                    flash('Please fill in all required fields', 'error')
+                    return redirect(url_for('report'))
+                
+                # Parse date
+                try:
+                    item_date = datetime.strptime(item_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    flash('Invalid date format', 'error')
+                    return redirect(url_for('report'))
+                
+                # Create new item
+                new_item = Item(
+                    name=item_name,
+                    category=item_category,
+                    status=form_type,
+                    date=item_date,
+                    location=item_location,
+                    description=item_description,
+                    contact=item_contact,
+                    phone=item_phone if item_phone else None,
+                    icon=get_category_icon(item_category)
+                )
+                
+                db.session.add(new_item)
+                db.session.commit()
+                
+                flash(f'{form_type.capitalize()} item reported successfully!', 'success')
+                return redirect(url_for('report'))
+            except Exception as e:
+                app.logger.error(f'Error creating report: {str(e)}')
+                import traceback
+                app.logger.error(traceback.format_exc())
+                flash(f'Error submitting report: {str(e)}', 'error')
+                return redirect(url_for('report'))
         
-        # Create new item
-        new_item = Item(
-            name=request.form.get('item-name') or request.form.get('found-item-name'),
-            category=request.form.get('category') or request.form.get('found-category'),
-            status=form_type,
-            date=datetime.strptime(
-                request.form.get('date-lost') or request.form.get('date-found'),
-                '%Y-%m-%d'
-            ).date(),
-            location=request.form.get('location') or request.form.get('found-location'),
-            description=request.form.get('description') or request.form.get('found-description'),
-            contact=request.form.get('contact') or request.form.get('found-contact'),
-            icon=get_category_icon(
-                request.form.get('category') or request.form.get('found-category')
-            )
-        )
+        # Check if user is admin
+        is_admin = require_admin()
         
-        db.session.add(new_item)
-        db.session.commit()
-        
-        flash('Item reported successfully!', 'success')
-        return redirect(url_for('report'))
-    
-    return render_template('report.html')
+        return render_template('report.html', is_admin=is_admin)
+    except Exception as e:
+        app.logger.error(f'Error in report route: {str(e)}')
+        flash('Error loading page. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
 
 
 @app.route('/search')
@@ -446,59 +511,78 @@ def search():
         flash('Please login to search items', 'warning')
         return redirect(url_for('login'))
     
-    # Get filter parameters
-    search_term = request.args.get('q', '').lower()
-    category = request.args.get('category', '')
-    status = request.args.get('status', '')
-    date_from = request.args.get('date_from', '')
-    date_to = request.args.get('date_to', '')
-    location = request.args.get('location', '').lower()
-    
-    # Build query
-    query = Item.query
-    
-    if search_term:
-        query = query.filter(
-            db.or_(
-                Item.name.ilike(f'%{search_term}%'),
-                Item.description.ilike(f'%{search_term}%'),
-                Item.location.ilike(f'%{search_term}%')
+    try:
+        # Get filter parameters
+        search_term = request.args.get('q', '').lower()
+        category = request.args.get('category', '')
+        status = request.args.get('status', '')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        location = request.args.get('location', '').lower()
+        
+        # Build query
+        query = Item.query
+        
+        if search_term:
+            query = query.filter(
+                db.or_(
+                    Item.name.ilike(f'%{search_term}%'),
+                    Item.description.ilike(f'%{search_term}%'),
+                    Item.location.ilike(f'%{search_term}%')
+                )
             )
-        )
-    
-    if category:
-        query = query.filter(Item.category == category)
-    
-    if status:
-        query = query.filter(Item.status == status)
-    
-    if date_from:
-        query = query.filter(Item.date >= datetime.strptime(date_from, '%Y-%m-%d').date())
-    
-    if date_to:
-        query = query.filter(Item.date <= datetime.strptime(date_to, '%Y-%m-%d').date())
-    
-    if location:
-        query = query.filter(Item.location.ilike(f'%{location}%'))
-    
-    # Get sort parameter
-    sort_by = request.args.get('sort', 'date-desc')
-    if sort_by == 'date-desc':
-        query = query.order_by(Item.date.desc())
-    elif sort_by == 'date-asc':
-        query = query.order_by(Item.date.asc())
-    elif sort_by == 'name-asc':
-        query = query.order_by(Item.name.asc())
-    elif sort_by == 'name-desc':
-        query = query.order_by(Item.name.desc())
-    elif sort_by == 'category':
-        query = query.order_by(Item.category.asc())
-    elif sort_by == 'status':
-        query = query.order_by(Item.status.asc())
-    
-    items = query.all()
-    
-    return render_template('search.html', items=items, search_term=search_term)
+        
+        if category:
+            query = query.filter(Item.category == category)
+        
+        if status:
+            query = query.filter(Item.status == status)
+        
+        if date_from:
+            query = query.filter(Item.date >= datetime.strptime(date_from, '%Y-%m-%d').date())
+        
+        if date_to:
+            query = query.filter(Item.date <= datetime.strptime(date_to, '%Y-%m-%d').date())
+        
+        if location:
+            query = query.filter(Item.location.ilike(f'%{location}%'))
+        
+        # Get sort parameter
+        sort_by = request.args.get('sort', 'date-desc')
+        if sort_by == 'date-desc':
+            query = query.order_by(Item.date.desc())
+        elif sort_by == 'date-asc':
+            query = query.order_by(Item.date.asc())
+        elif sort_by == 'name-asc':
+            query = query.order_by(Item.name.asc())
+        elif sort_by == 'name-desc':
+            query = query.order_by(Item.name.desc())
+        elif sort_by == 'category':
+            query = query.order_by(Item.category.asc())
+        elif sort_by == 'status':
+            query = query.order_by(Item.status.asc())
+        
+        items = query.all()
+        
+        # Get user info for template
+        user = User.query.get(session.get('user_id'))
+        is_admin = user.is_admin_user() if user else False
+        
+        print(f"[DEBUG] Rendering search.html with {len(items)} items")
+        result = render_template('search.html', 
+                             items=items, 
+                             search_term=search_term,
+                             username=session.get('username', 'User'),
+                             is_admin=is_admin)
+        print(f"[DEBUG] Template rendered successfully, length: {len(result)}")
+        return result
+    except Exception as e:
+        import traceback
+        error_msg = f'Error in search route: {str(e)}\n{traceback.format_exc()}'
+        app.logger.error(error_msg)
+        print(f"[ERROR] {error_msg}")
+        flash('Error loading search page. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
 
 
 @app.route('/create-item', methods=['GET', 'POST'])
@@ -509,33 +593,85 @@ def create_item():
         return redirect(url_for('login'))
     
     if request.method == 'POST':
-        new_item = Item(
-            name=request.form.get('item-name'),
-            category=request.form.get('item-category'),
-            status=request.form.get('item-status'),
-            date=datetime.strptime(request.form.get('item-date'), '%Y-%m-%d').date(),
-            location=request.form.get('item-location'),
-            description=request.form.get('item-description'),
-            contact=request.form.get('item-contact'),
-            icon=get_category_icon(request.form.get('item-category')),
-            building=request.form.get('item-building'),
-            floor=request.form.get('item-floor'),
-            color=request.form.get('item-color'),
-            brand=request.form.get('item-brand'),
-            value=float(request.form.get('item-value')) if request.form.get('item-value') else None,
-            phone=request.form.get('item-phone'),
-            student_id=request.form.get('item-student-id'),
-            notes=request.form.get('item-notes'),
-            priority=request.form.get('item-priority', 'medium')
-        )
-        
-        db.session.add(new_item)
-        db.session.commit()
-        
-        flash('Item created successfully!', 'success')
-        return redirect(url_for('create_item'))
+        try:
+            # Get form data
+            item_name = request.form.get('item-name', '').strip()
+            item_category = request.form.get('item-category', '').strip()
+            item_date_str = request.form.get('item-date', '').strip()
+            item_location = request.form.get('item-location', '').strip()
+            item_description = request.form.get('item-description', '').strip()
+            item_color = request.form.get('item-color', '').strip()
+            item_brand = request.form.get('item-brand', '').strip()
+            item_value_str = request.form.get('item-value', '').strip()
+            
+            # Get user's email from session for contact
+            item_contact = session.get('email', '')
+            
+            # Validate required fields
+            if not all([item_name, item_category, item_date_str, item_location, item_description, item_contact]):
+                flash('Please fill in all required fields', 'error')
+                return redirect(url_for('create_item'))
+            
+            # Parse date
+            try:
+                item_date = datetime.strptime(item_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                flash('Invalid date format', 'error')
+                return redirect(url_for('create_item'))
+            
+            # Parse value
+            item_value = None
+            if item_value_str:
+                try:
+                    item_value = float(item_value_str)
+                except ValueError:
+                    item_value = None
+            
+            # Create new item (default status as 'found' for created items)
+            new_item = Item(
+                name=item_name,
+                category=item_category,
+                status='found',  # Default status for created items
+                date=item_date,
+                location=item_location,
+                description=item_description,
+                contact=item_contact,
+                color=item_color if item_color else None,
+                brand=item_brand if item_brand else None,
+                value=item_value,
+                icon=get_category_icon(item_category)
+            )
+            
+            db.session.add(new_item)
+            db.session.commit()
+            
+            flash('Item created successfully!', 'success')
+            return redirect(url_for('create_item'))
+        except Exception as e:
+            app.logger.error(f'Error creating item: {str(e)}')
+            import traceback
+            app.logger.error(traceback.format_exc())
+            flash(f'Error creating item: {str(e)}', 'error')
+            return redirect(url_for('create_item'))
     
-    return render_template('create-item.html')
+    try:
+        # Get user info for template
+        user = User.query.get(session.get('user_id'))
+        is_admin = user.is_admin_user() if user else False
+        
+        print(f"[DEBUG] Rendering create-item.html for user: {session.get('username')}")
+        result = render_template('create-item.html', 
+                             username=session.get('username', 'User'),
+                             is_admin=is_admin)
+        print(f"[DEBUG] Template rendered successfully, length: {len(result)}")
+        return result
+    except Exception as e:
+        import traceback
+        error_msg = f'Error rendering create-item template: {str(e)}\n{traceback.format_exc()}'
+        app.logger.error(error_msg)
+        print(f"[ERROR] {error_msg}")
+        flash('Error loading page. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
 
 
 @app.route('/invoice', methods=['GET', 'POST'])
@@ -545,58 +681,71 @@ def invoice():
         flash('Please login to generate invoices', 'warning')
         return redirect(url_for('login'))
     
-    if request.method == 'POST':
-        # Create new invoice
-        new_invoice = Invoice(
-            invoice_number=generate_invoice_number(),
-            date=datetime.strptime(request.form.get('invoice-date'), '%Y-%m-%d').date(),
-            due_date=datetime.strptime(request.form.get('due-date'), '%Y-%m-%d').date(),
-            status=request.form.get('invoice-status', 'pending'),
-            client_name=request.form.get('client-name'),
-            client_email=request.form.get('client-email'),
-            client_phone=request.form.get('client-phone'),
-            client_id=request.form.get('client-id'),
-            item_id=int(request.form.get('invoice-item')),
-            item_description=request.form.get('item-description'),
-            item_location=request.form.get('item-location'),
-            item_date=datetime.strptime(request.form.get('item-date'), '%Y-%m-%d').date() if request.form.get('item-date') else None,
-            processing_fee=float(request.form.get('processing-fee', 5.00)),
-            storage_fee=float(request.form.get('storage-fee', 2.00)),
-            late_fee=float(request.form.get('late-fee', 1.00)),
-            total_amount=float(request.form.get('total-amount')),
-            notes=request.form.get('invoice-notes')
-        )
+    try:
+        if request.method == 'POST':
+            # Create new invoice
+            new_invoice = Invoice(
+                invoice_number=generate_invoice_number(),
+                date=datetime.strptime(request.form.get('invoice-date'), '%Y-%m-%d').date(),
+                due_date=datetime.strptime(request.form.get('due-date'), '%Y-%m-%d').date(),
+                status=request.form.get('invoice-status', 'pending'),
+                client_name=request.form.get('client-name'),
+                client_email=request.form.get('client-email'),
+                client_phone=request.form.get('client-phone'),
+                client_id=request.form.get('client-id'),
+                item_id=int(request.form.get('invoice-item')),
+                item_description=request.form.get('item-description'),
+                item_location=request.form.get('item-location'),
+                item_date=datetime.strptime(request.form.get('item-date'), '%Y-%m-%d').date() if request.form.get('item-date') else None,
+                processing_fee=float(request.form.get('processing-fee', 5.00)),
+                storage_fee=float(request.form.get('storage-fee', 2.00)),
+                late_fee=float(request.form.get('late-fee', 1.00)),
+                total_amount=float(request.form.get('total-amount')),
+                notes=request.form.get('invoice-notes')
+            )
+            
+            db.session.add(new_invoice)
+            db.session.commit()
+            
+            flash('Invoice generated successfully!', 'success')
+            return redirect(url_for('invoice'))
         
-        db.session.add(new_invoice)
-        db.session.commit()
+        # Get found items for dropdown
+        found_items = Item.query.filter_by(status='found').all()
+        invoices = Invoice.query.order_by(Invoice.created_at.desc()).all()
         
-        flash('Invoice generated successfully!', 'success')
-        return redirect(url_for('invoice'))
-    
-    # Get found items for dropdown
-    found_items = Item.query.filter_by(status='found').all()
-    invoices = Invoice.query.order_by(Invoice.created_at.desc()).all()
-    
-    # Calculate statistics
-    total_invoices = Invoice.query.count()
-    total_revenue = db.session.query(db.func.sum(Invoice.total_amount)).scalar() or 0
-    this_month = Invoice.query.filter(
-        db.extract('month', Invoice.date) == datetime.now().month,
-        db.extract('year', Invoice.date) == datetime.now().year
-    ).count()
-    
-    return render_template('invoice.html',
-                         found_items=found_items,
-                         invoices=invoices,
-                         total_invoices=total_invoices,
-                         total_revenue=total_revenue,
-                         this_month=this_month)
+        # Calculate statistics
+        total_invoices = Invoice.query.count()
+        total_revenue = db.session.query(db.func.sum(Invoice.total_amount)).scalar() or 0
+        this_month = Invoice.query.filter(
+            db.extract('month', Invoice.date) == datetime.now().month,
+            db.extract('year', Invoice.date) == datetime.now().year
+        ).count()
+        
+        return render_template('invoice.html',
+                             found_items=found_items,
+                             invoices=invoices,
+                             total_invoices=total_invoices,
+                             total_revenue=total_revenue,
+                             this_month=this_month)
+    except Exception as e:
+        app.logger.error(f'Error in invoice route: {str(e)}')
+        flash('Error loading page. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
 
 
 @app.route('/about')
 def about():
     """About page"""
-    return render_template('about.html')
+    if 'user_id' not in session:
+        flash('Please login to view this page', 'warning')
+        return redirect(url_for('login'))
+    try:
+        return render_template('about.html')
+    except Exception as e:
+        app.logger.error(f'Error rendering about template: {str(e)}')
+        flash('Error loading page. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
 
 
 def require_admin():
@@ -622,8 +771,9 @@ def admin_files():
         flash('Access denied. Admin privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
-    # List of created utility files
-    created_files = [
+    try:
+        # List of created utility files
+        created_files = [
         {
             'name': 'reset_user_password.py',
             'description': 'Password reset utility - Reset user passwords',
@@ -635,58 +785,14 @@ def admin_files():
             'description': 'User information viewer - View all users and test passwords',
             'usage': 'python view_users.py list',
             'category': 'Utility Script'
-        },
-        {
-            'name': 'start-server.bat',
-            'description': 'Windows batch file to start Flask server',
-            'usage': 'Double-click or run from command prompt',
-            'category': 'Startup Script'
-        },
-        {
-            'name': 'setup-postgresql.bat',
-            'description': 'PostgreSQL setup automation script',
-            'usage': 'Double-click to run setup wizard',
-            'category': 'Setup Script'
-        },
-        {
-            'name': 'run.bat',
-            'description': 'Quick server startup script',
-            'usage': 'Double-click to start server',
-            'category': 'Startup Script'
-        },
-        {
-            'name': 'start-server.ps1',
-            'description': 'PowerShell script to start Flask server',
-            'usage': '.\start-server.ps1',
-            'category': 'Startup Script'
-        },
-        {
-            'name': 'POSTGRESQL_SETUP.md',
-            'description': 'Detailed PostgreSQL setup guide',
-            'usage': 'Read for PostgreSQL installation instructions',
-            'category': 'Documentation'
-        },
-        {
-            'name': 'QUICK_POSTGRES_SETUP.md',
-            'description': 'Quick PostgreSQL setup guide',
-            'usage': 'Quick reference for PostgreSQL setup',
-            'category': 'Documentation'
-        },
-        {
-            'name': 'HOW_TO_RUN.md',
-            'description': 'Instructions on how to run the project',
-            'usage': 'Read for running instructions',
-            'category': 'Documentation'
-        },
-        {
-            'name': 'USER_PASSWORD_GUIDE.md',
-            'description': 'Guide for managing user passwords',
-            'usage': 'Read for password management instructions',
-            'category': 'Documentation'
         }
-    ]
-    
-    return render_template('admin_files.html', files=created_files, username=session.get('username', 'Admin'))
+        ]
+        
+        return render_template('admin_files.html', files=created_files, username=session.get('username', 'Admin'))
+    except Exception as e:
+        app.logger.error(f'Error in admin_files route: {str(e)}')
+        flash('Error loading page. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
 
 
 # API Routes

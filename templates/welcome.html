@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - BUBT Lost & Found System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/welcome-styles.css') }}">
+</head>
+<body>
+    <!-- Background Animation -->
+    <div class="welcome-background">
+        <div class="floating-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+            <div class="shape shape-4"></div>
+            <div class="shape shape-5"></div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="welcome-container">
+        <div class="welcome-content">
+            <!-- Logo and Title -->
+            <div class="welcome-header">
+                <div class="logo-container">
+                    <i class="fas fa-search-location"></i>
+                </div>
+                <h1 class="welcome-title">BUBT Lost & Found</h1>
+                <p class="welcome-subtitle">Your comprehensive solution for managing lost and found items on campus</p>
+            </div>
+
+            <!-- Features Section -->
+            <div class="features-section">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>Smart Search</h3>
+                    <p>Find lost items quickly with our advanced search system</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Secure Platform</h3>
+                    <p>Your data is protected with industry-standard security</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h3>Real-time Updates</h3>
+                    <p>Get instant notifications about your lost or found items</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>Community Driven</h3>
+                    <p>Connect with the campus community to help each other</p>
+                </div>
+            </div>
+
+            <!-- About Section -->
+            <div class="about-section">
+                <p>
+                    The BUBT Lost & Found System helps students, faculty, and staff efficiently manage and recover lost items on campus. 
+                    Report, search, and claim items with our intuitive platform.
+                </p>
+            </div>
+
+            <!-- Call to Action -->
+            <div class="cta-section">
+                <a href="{{ url_for('login') }}" class="login-button">
+                    <span class="btn-text">Get Started</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+                <p class="cta-note">Already have an account? Sign in to continue</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

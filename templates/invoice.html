@@ -270,10 +270,9 @@
         });
 
         function checkLoginStatus() {
-            const isLoggedIn = localStorage.getItem('isLoggedIn');
-            if (isLoggedIn !== 'true') {
-                window.location.href = 'index.html';
-            }
+            // Flask already handles authentication, so this check is not needed
+            // But we can keep it for client-side validation if needed
+            // Authentication is handled by Flask session in the backend
         }
 
         function initializeInvoicePage() {

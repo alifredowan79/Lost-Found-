@@ -97,13 +97,13 @@ const mainTabContents = document.querySelectorAll('.main-tab-content');
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     // Check which page we're on and initialize accordingly
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const currentPage = window.location.pathname.split('/').pop() || '';
     
-    if (currentPage === 'index.html') {
-        // Home page
+    if (currentPage === '' || currentPage === 'welcome.html' || currentPage === '/') {
+        // Home/Welcome page
         initializeNavigation();
         makeHeroButtonsFunctional();
-    } else if (currentPage === 'dashboard.html') {
+    } else if (currentPage === 'dashboard.html' || currentPage === 'dashboard') {
         // Dashboard page
         initializeDashboard();
         updateDashboardStats();

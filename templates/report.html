@@ -1,36 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Report Items - BUBT Lost and Found System</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/report-styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body>
-    <header class="header">
-        <nav class="nav">
-            <div class="nav-brand">
-                <i class="fas fa-search-location"></i>
-                <h1>BUBT Lost & Found</h1>
-            </div>
-            <ul class="nav-menu">
-                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
-                <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
-                <li><a href="{{ url_for('report') }}" class="nav-link active">Report Items</a></li>
-                <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
-                <li><a href="{{ url_for('invoice') }}" class="nav-link">Generate Invoice</a></li>
-                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
-            </ul>
-            <div class="nav-toggle">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </nav>
-    </header>
+{% extends "base.html" %}
+
+{% block title %}Report Items - BUBT Lost and Found System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/report-styles.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="header">
+    <nav class="nav">
+        <div class="nav-brand">
+            <i class="fas fa-search-location"></i>
+            <h1>BUBT Lost & Found</h1>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+            <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
+            <li><a href="{{ url_for('report') }}" class="nav-link active">Report Items</a></li>
+            <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
+            <li><a href="{{ url_for('invoice') }}" class="nav-link">Generate Invoice</a></li>
+            <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+            {% if is_admin %}
+            <li><a href="{{ url_for('admin_files') }}" class="nav-link" style="color: #f59e0b;">
+                <i class="fas fa-shield-alt"></i> Admin Files
+            </a></li>
+            {% endif %}
+        </ul>
+        <div class="nav-user">
+            <span class="user-email" id="user-email">{{ session.get('email', 'user@bubt.edu.bd') }}</span>
+            <button class="btn btn-outline btn-sm" onclick="window.location.href='{{ url_for('logout') }}'">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+        <div class="nav-toggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+</header>
 
     <main class="main">
         <!-- Hero Section -->
@@ -52,28 +60,22 @@
                 <h2 class="section-title">Report & Submit</h2>
                 <p class="section-description">Choose the type of report you want to submit and fill out the details</p>
                 
-                <!-- Quick Actions -->
-                <div class="quick-actions">
-                    <button class="quick-action-btn active" data-action="guide">
-                        <i class="fas fa-info-circle"></i> Report Guide
-                    </button>
-                    <button class="quick-action-btn" data-action="tips">
-                        <i class="fas fa-lightbulb"></i> Tips & Best Practices
-                    </button>
-                    <button class="quick-action-btn" data-action="help">
-                        <i class="fas fa-question-circle"></i> Need Help?
-                    </button>
-                </div>
 
                 <!-- Report Tabs -->
                 <div class="report-tabs">
                     <button class="tab-btn active" data-tab="lost">
                         <i class="fas fa-exclamation-triangle"></i>
-                        Report Lost Item
+                        <div class="tab-btn-content">
+                            <span>Report Lost Item</span>
+                            <small>I lost something</small>
+                        </div>
                     </button>
                     <button class="tab-btn" data-tab="found">
                         <i class="fas fa-hand-holding-heart"></i>
-                        Report Found Item
+                        <div class="tab-btn-content">
+                            <span>Report Found Item</span>
+                            <small>I found something</small>
+                        </div>
                     </button>
                 </div>
 
@@ -81,15 +83,8 @@
                 <div class="tab-contents">
                     <!-- Lost Item Tab -->
                     <div id="lost-tab" class="tab-content active">
-                        <!-- Progress Indicator -->
-                        <div class="form-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="lost-progress-fill"></div>
-                            </div>
-                            <div class="progress-text">Form Completion: <span class="progress-percentage" id="lost-progress-text">0%</span></div>
-                        </div>
-                        
-                        <form class="report-form" id="lost-form">
+                        <form class="report-form" id="lost-form" method="POST" action="{{ url_for('report') }}">
+                            <input type="hidden" name="form_type" value="lost">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="lost-item-name">Item Name *</label>
@@ -122,37 +117,26 @@
                                 <label for="lost-description">Description *</label>
                                 <textarea id="lost-description" name="description" rows="4" placeholder="Provide detailed description of the item, including any identifying marks, colors, or special features" required></textarea>
                             </div>
-                            <div class="form-group">
-                                <label for="lost-contact">Contact Information *</label>
-                                <input type="email" id="lost-contact" name="contact" placeholder="your.email@bubt.edu.bd" required>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="lost-contact">Contact Email *</label>
+                                    <input type="email" id="lost-contact" name="contact" placeholder="your.email@bubt.edu.bd" value="{{ session.get('email', '') }}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="lost-phone">Phone Number</label>
+                                    <input type="tel" id="lost-phone" name="phone" placeholder="e.g., +880 17XX XXX XXX">
+                                </div>
                             </div>
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-paper-plane"></i> Submit Lost Item Report
                             </button>
                         </form>
-                        
-                        <!-- Form Preview -->
-                        <div class="form-preview" id="lost-preview">
-                            <div class="preview-title">
-                                <i class="fas fa-eye"></i> Report Preview
-                            </div>
-                            <div class="preview-content" id="lost-preview-content">
-                                <p style="text-align: center; color: #9ca3af; font-style: italic;">Fill out the form to see a preview of your report</p>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Found Item Tab -->
                     <div id="found-tab" class="tab-content">
-                        <!-- Progress Indicator -->
-                        <div class="form-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="found-progress-fill"></div>
-                            </div>
-                            <div class="progress-text">Form Completion: <span class="progress-percentage" id="found-progress-text">0%</span></div>
-                        </div>
-                        
-                        <form class="report-form" id="found-form">
+                        <form class="report-form" id="found-form" method="POST" action="{{ url_for('report') }}">
+                            <input type="hidden" name="form_type" value="found">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="found-item-name">Item Name *</label>
@@ -185,32 +169,30 @@
                                 <label for="found-description">Description *</label>
                                 <textarea id="found-description" name="found-description" rows="4" placeholder="Provide detailed description of the item, including any identifying marks, colors, or special features" required></textarea>
                             </div>
-                            <div class="form-group">
-                                <label for="found-contact">Your Contact Information *</label>
-                                <input type="email" id="found-contact" name="found-contact" placeholder="your.email@bubt.edu.bd" required>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="found-contact">Contact Email *</label>
+                                    <input type="email" id="found-contact" name="found-contact" placeholder="your.email@bubt.edu.bd" value="{{ session.get('email', '') }}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="found-phone">Phone Number</label>
+                                    <input type="tel" id="found-phone" name="found-phone" placeholder="e.g., +880 17XX XXX XXX">
+                                </div>
                             </div>
                             <button type="submit" class="btn btn-success">
                                 <i class="fas fa-hand-holding-heart"></i> Submit Found Item Report
                             </button>
                         </form>
-                        
-                        <!-- Form Preview -->
-                        <div class="form-preview" id="found-preview">
-                            <div class="preview-title">
-                                <i class="fas fa-eye"></i> Report Preview
-                            </div>
-                            <div class="preview-content" id="found-preview-content">
-                                <p style="text-align: center; color: #9ca3af; font-style: italic;">Fill out the form to see a preview of your report</p>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </section>
     </main>
+{% endblock %}
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-    <script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+<script>
         // Global variables
         let currentTab = 'lost';
         let formData = {
@@ -228,10 +210,9 @@
 
         // Check if user is logged in
         function checkLoginStatus() {
-            const isLoggedIn = localStorage.getItem('isLoggedIn');
-            if (isLoggedIn !== 'true') {
-                window.location.href = 'index.html';
-            }
+            // Flask already handles authentication, so this check is not needed
+            // But we can keep it for client-side validation if needed
+            // Authentication is handled by Flask session in the backend
         }
 
         // Initialize reports page
@@ -262,14 +243,6 @@
                 btn.addEventListener('click', function() {
                     const tab = this.dataset.tab;
                     switchTab(tab);
-                });
-            });
-
-            // Quick action buttons
-            document.querySelectorAll('.quick-action-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const action = this.dataset.action;
-                    handleQuickAction(action);
                 });
             });
 
@@ -499,19 +472,22 @@
         function setupFormSubmissions() {
             // Lost item form
             document.getElementById('lost-form').addEventListener('submit', function(e) {
-                e.preventDefault();
-                handleFormSubmission('lost', this);
+                if (!handleFormSubmission('lost', this)) {
+                    e.preventDefault();
+                }
             });
 
             // Found item form
             document.getElementById('found-form').addEventListener('submit', function(e) {
-                e.preventDefault();
-                handleFormSubmission('found', this);
+                if (!handleFormSubmission('found', this)) {
+                    e.preventDefault();
+                }
             });
         }
 
         // Handle form submission
         function handleFormSubmission(formType, form) {
+            // Validate form before submission
             const formData = new FormData(form);
             const data = {};
             
@@ -520,17 +496,16 @@
             }
             
             // Validate form
-            if (validateForm(formType, data)) {
-                // Show loading state
-                showLoadingState(formType);
-                
-                // Simulate form submission
-                setTimeout(() => {
-                    hideLoadingState(formType);
-                    showSuccessMessage(formType, data);
-                    resetForm(formType);
-                }, 2000);
+            if (!validateForm(formType, data)) {
+                return false; // Prevent submission if validation fails
             }
+            
+            // Show loading state
+            showLoadingState(formType);
+            
+            // Form will submit to Flask backend automatically
+            // Flask will handle database storage
+            return true; // Allow form submission
         }
 
         // Validate form
@@ -595,42 +570,29 @@
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
         }
 
-        // Hide loading state
+        // Hide loading state (re-enable button after timeout in case of error)
         function hideLoadingState(formType) {
-            const form = document.getElementById(`${formType}-form`);
-            const submitBtn = form.querySelector('.btn');
-            
-            submitBtn.disabled = false;
-            
-            if (formType === 'lost') {
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Lost Item Report';
-            } else {
-                submitBtn.innerHTML = '<i class="fas fa-hand-holding-heart"></i> Submit Found Item Report';
-            }
+            setTimeout(() => {
+                const form = document.getElementById(`${formType}-form`);
+                if (form) {
+                    const submitBtn = form.querySelector('.btn');
+                    if (submitBtn && submitBtn.disabled) {
+                        submitBtn.disabled = false;
+                        
+                        if (formType === 'lost') {
+                            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Lost Item Report';
+                        } else {
+                            submitBtn.innerHTML = '<i class="fas fa-hand-holding-heart"></i> Submit Found Item Report';
+                        }
+                    }
+                }
+            }, 5000);
         }
 
-        // Show success message
+        // Show success message (now handled by Flask flash messages)
         function showSuccessMessage(formType, data) {
-            const message = `
-                <div class="success-message">
-                    <i class="fas fa-check-circle"></i>
-                    <div>
-                        <strong>Report Submitted Successfully!</strong><br>
-                        Your ${formType} item report has been submitted. We'll review it and contact you if needed.
-                    </div>
-                </div>
-            `;
-            
-            const container = document.querySelector('.container');
-            const messageDiv = document.createElement('div');
-            messageDiv.innerHTML = message;
-            messageDiv.style.marginBottom = '2rem';
-            
-            container.insertBefore(messageDiv, container.querySelector('.quick-actions'));
-            
-            setTimeout(() => {
-                messageDiv.remove();
-            }, 8000);
+            // Flash messages are handled by Flask backend
+            // This function is kept for compatibility but won't be called
         }
 
         // Reset form
@@ -667,5 +629,4 @@
         // Initialize animations when page loads
         setTimeout(addFormAnimations, 100);
     </script>
-</body>
-</html>
+{% endblock %}

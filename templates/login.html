@@ -68,72 +68,10 @@
                     <div class="spinner"></div>
                 </div>
             </button>
-
-            <div class="divider">
-                <span>or</span>
-            </div>
-
-            <div class="social-login">
-                <button type="button" class="social-btn google-btn">
-                    <i class="fab fa-google"></i>
-                    Continue with Google
-                </button>
-                <button type="button" class="social-btn microsoft-btn">
-                    <i class="fab fa-microsoft"></i>
-                    Continue with Microsoft
-                </button>
-            </div>
         </form>
 
         <div class="login-footer">
             <p>Don't have an account? <a href="#" id="signUpLink">Sign up here</a></p>
-        </div>
-    </div>
-
-    <!-- Login Info Panel -->
-    <div class="login-info-panel">
-        <div class="info-content">
-            <h2>Welcome to BUBT Lost & Found System</h2>
-            <p>Your comprehensive solution for managing lost and found items on campus</p>
-            
-            <div class="features-list">
-                <div class="feature-item">
-                    <i class="fas fa-search"></i>
-                    <div>
-                        <h4>Smart Search</h4>
-                        <p>Find lost items quickly with our advanced search system</p>
-                    </div>
-                </div>
-                <div class="feature-item">
-                    <i class="fas fa-shield-alt"></i>
-                    <div>
-                        <h4>Secure Platform</h4>
-                        <p>Your data is protected with enterprise-grade security</p>
-                    </div>
-                </div>
-                <div class="feature-item">
-                    <i class="fas fa-mobile-alt"></i>
-                    <div>
-                        <h4>Mobile Friendly</h4>
-                        <p>Access the system from any device, anywhere</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="stats">
-                <div class="stat-item">
-                    <span class="stat-number">1,247</span>
-                    <span class="stat-label">Items Found</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">892</span>
-                    <span class="stat-label">Items Reunited</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">156</span>
-                    <span class="stat-label">Happy Users</span>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -257,6 +195,18 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                // If not JSON, redirect to handle HTML response
+                if (response.ok) {
+                    window.location.href = '{{ url_for("dashboard") }}';
+                    return;
+                } else {
+                    throw new Error('Server returned non-JSON response');
+                }
+            }
             
             const data = await response.json();
             
