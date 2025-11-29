@@ -1,35 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About - BUBT Lost and Found System</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body>
-    <header class="header">
-        <nav class="nav">
-            <div class="nav-brand">
-                <i class="fas fa-search-location"></i>
-                <h1>BUBT Lost & Found</h1>
-            </div>
-            <ul class="nav-menu">
-                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
-                <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
-                <li><a href="{{ url_for('report') }}" class="nav-link">Report Items</a></li>
-                <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
-                <li><a href="{{ url_for('invoice') }}" class="nav-link">Generate Invoice</a></li>
-                <li><a href="{{ url_for('about') }}" class="nav-link active">About</a></li>
-            </ul>
-            <div class="nav-toggle">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </nav>
-    </header>
+{% extends "base.html" %}
+
+{% block title %}About - BUBT Lost and Found System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/about-styles.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="header">
+    <nav class="nav">
+        <div class="nav-brand">
+            <i class="fas fa-search-location"></i>
+            <h1>BUBT Lost & Found</h1>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+            {% if is_admin %}
+            <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
+            {% endif %}
+            <li><a href="{{ url_for('report') }}" class="nav-link">Report Items</a></li>
+            <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
+            <li><a href="{{ url_for('about') }}" class="nav-link active">About</a></li>
+            {% if is_admin %}
+            <li><a href="{{ url_for('admin_files') }}" class="nav-link" style="color: #f59e0b;">
+                <i class="fas fa-shield-alt"></i> Admin Files
+            </a></li>
+            {% endif %}
+        </ul>
+        <div class="nav-user">
+            <span class="user-email">{{ session.get('email', 'user@bubt.edu.bd') }}</span>
+            <button class="btn btn-outline btn-sm" onclick="window.location.href='{{ url_for('logout') }}'">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+        <div class="nav-toggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+</header>
 
     <main class="main">
         <!-- Hero Section -->
@@ -48,16 +58,20 @@
                     <p class="hero-subtitle">Connecting our community through trust, technology, and compassion</p>
                     <div class="hero-stats">
                         <div class="stat-item">
-                            <span class="stat-number" data-target="1000">0</span>
-                            <span class="stat-label">Items Reunited</span>
+                            <span class="stat-number" data-target="{{ total_lost_found_items }}">0</span>
+                            <span class="stat-label">Total Reports</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-number" data-target="500">0</span>
-                            <span class="stat-label">Happy Students</span>
+                            <span class="stat-number" data-target="{{ total_users }}">0</span>
+                            <span class="stat-label">Active Users</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-number" data-target="99">0</span>
+                            <span class="stat-number" data-target="{{ success_rate }}">0</span>
                             <span class="stat-label">Success Rate %</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-target="{{ found_items_count }}">0</span>
+                            <span class="stat-label">Items Found</span>
                         </div>
                     </div>
                 </div>
@@ -265,7 +279,6 @@
         </section>
     </main>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
         // Animate numbers on scroll
         function animateNumbers() {
@@ -329,5 +342,4 @@
             }
         });
     </script>
-</body>
-</html>
+{% endblock %}

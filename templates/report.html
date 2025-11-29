@@ -15,10 +15,11 @@
         </div>
         <ul class="nav-menu">
             <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+            {% if is_admin %}
             <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
+            {% endif %}
             <li><a href="{{ url_for('report') }}" class="nav-link active">Report Items</a></li>
             <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
-            <li><a href="{{ url_for('invoice') }}" class="nav-link">Generate Invoice</a></li>
             <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
             {% if is_admin %}
             <li><a href="{{ url_for('admin_files') }}" class="nav-link" style="color: #f59e0b;">
@@ -27,7 +28,7 @@
             {% endif %}
         </ul>
         <div class="nav-user">
-            <span class="user-email" id="user-email">{{ session.get('email', 'user@bubt.edu.bd') }}</span>
+            <span class="user-email">{{ session.get('email', 'user@bubt.edu.bd') }}</span>
             <button class="btn btn-outline btn-sm" onclick="window.location.href='{{ url_for('logout') }}'">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </button>
@@ -40,593 +41,271 @@
     </nav>
 </header>
 
-    <main class="main">
-        <!-- Hero Section -->
-        <section class="report-hero">
-            <div class="hero-content">
-                <h1 class="hero-title">
-                    <i class="fas fa-file-alt"></i>
-                    Report Items
+<main class="main">
+    <div class="container">
+        <!-- Report Tabs -->
+        <div class="report-tabs-container">
+            <button class="report-tab-btn active" data-tab="lost">
+                <i class="fas fa-exclamation-triangle"></i>
+                Report Lost Item
+            </button>
+            <button class="report-tab-btn" data-tab="found">
+                <i class="fas fa-hand-holding-heart"></i>
+                Report Found Item
+            </button>
+        </div>
+
+        <!-- Lost Item Form -->
+        <div id="lost-form-container" class="form-container active">
+            <div class="simple-form-container">
+                <h1 class="form-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Report Lost Item
                 </h1>
-                <p class="hero-description">
-                    Help us maintain a comprehensive database of lost and found items on campus
-                </p>
-            </div>
-        </section>
-
-        <!-- Report Section -->
-        <section id="report" class="report-section">
-            <div class="container">
-                <h2 class="section-title">Report & Submit</h2>
-                <p class="section-description">Choose the type of report you want to submit and fill out the details</p>
-                
-
-                <!-- Report Tabs -->
-                <div class="report-tabs">
-                    <button class="tab-btn active" data-tab="lost">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <div class="tab-btn-content">
-                            <span>Report Lost Item</span>
-                            <small>I lost something</small>
-                        </div>
-                    </button>
-                    <button class="tab-btn" data-tab="found">
-                        <i class="fas fa-hand-holding-heart"></i>
-                        <div class="tab-btn-content">
-                            <span>Report Found Item</span>
-                            <small>I found something</small>
-                        </div>
-                    </button>
-                </div>
-
-                <!-- Tab Contents -->
-                <div class="tab-contents">
-                    <!-- Lost Item Tab -->
-                    <div id="lost-tab" class="tab-content active">
-                        <form class="report-form" id="lost-form" method="POST" action="{{ url_for('report') }}">
-                            <input type="hidden" name="form_type" value="lost">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="lost-item-name">Item Name *</label>
-                                    <input type="text" id="lost-item-name" name="item-name" placeholder="e.g., iPhone 13 Pro, Gold Necklace" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="lost-category">Category *</label>
-                                    <select id="lost-category" name="category" required>
-                                        <option value="">Select Category</option>
-                                        <option value="electronics">Electronics</option>
-                                        <option value="jewelry">Jewelry</option>
-                                        <option value="clothing">Clothing</option>
-                                        <option value="documents">Documents</option>
-                                        <option value="keys">Keys</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="lost-date">Date Lost *</label>
-                                    <input type="date" id="lost-date" name="date-lost" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="lost-location">Location Lost *</label>
-                                    <input type="text" id="lost-location" name="location" placeholder="e.g., Main Library, 2nd Floor" required>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="lost-description">Description *</label>
-                                <textarea id="lost-description" name="description" rows="4" placeholder="Provide detailed description of the item, including any identifying marks, colors, or special features" required></textarea>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="lost-contact">Contact Email *</label>
-                                    <input type="email" id="lost-contact" name="contact" placeholder="your.email@bubt.edu.bd" value="{{ session.get('email', '') }}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="lost-phone">Phone Number</label>
-                                    <input type="tel" id="lost-phone" name="phone" placeholder="e.g., +880 17XX XXX XXX">
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-paper-plane"></i> Submit Lost Item Report
-                            </button>
-                        </form>
-                    </div>
-
-                    <!-- Found Item Tab -->
-                    <div id="found-tab" class="tab-content">
-                        <form class="report-form" id="found-form" method="POST" action="{{ url_for('report') }}">
-                            <input type="hidden" name="form_type" value="found">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="found-item-name">Item Name *</label>
-                                    <input type="text" id="found-item-name" name="found-item-name" placeholder="e.g., iPhone 13 Pro, Gold Necklace" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="found-category">Category *</label>
-                                    <select id="found-category" name="found-category" required>
-                                        <option value="">Select Category</option>
-                                        <option value="electronics">Electronics</option>
-                                        <option value="jewelry">Jewelry</option>
-                                        <option value="clothing">Clothing</option>
-                                        <option value="documents">Documents</option>
-                                        <option value="keys">Keys</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="found-date">Date Found *</label>
-                                    <input type="date" id="found-date" name="date-found" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="found-location">Location Found *</label>
-                                    <input type="text" id="found-location" name="found-location" placeholder="e.g., Student Center, Cafeteria" required>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="found-description">Description *</label>
-                                <textarea id="found-description" name="found-description" rows="4" placeholder="Provide detailed description of the item, including any identifying marks, colors, or special features" required></textarea>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="found-contact">Contact Email *</label>
-                                    <input type="email" id="found-contact" name="found-contact" placeholder="your.email@bubt.edu.bd" value="{{ session.get('email', '') }}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="found-phone">Phone Number</label>
-                                    <input type="tel" id="found-phone" name="found-phone" placeholder="e.g., +880 17XX XXX XXX">
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-hand-holding-heart"></i> Submit Found Item Report
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-{% endblock %}
-
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/script.js') }}"></script>
-<script>
-        // Global variables
-        let currentTab = 'lost';
-        let formData = {
-            lost: {},
-            found: {}
-        };
-
-        // Initialize reports page
-        document.addEventListener('DOMContentLoaded', function() {
-            checkLoginStatus();
-            initializeReportsPage();
-            setupEventListeners();
-            setCurrentDate();
-        });
-
-        // Check if user is logged in
-        function checkLoginStatus() {
-            // Flask already handles authentication, so this check is not needed
-            // But we can keep it for client-side validation if needed
-            // Authentication is handled by Flask session in the backend
-        }
-
-        // Initialize reports page
-        function initializeReportsPage() {
-            // Set current date for date inputs
-            setCurrentDate();
-            
-            // Initialize form progress
-            updateFormProgress('lost');
-            updateFormProgress('found');
-            
-            // Show form previews
-            showFormPreview('lost');
-            showFormPreview('found');
-        }
-
-        // Set current date for date inputs
-        function setCurrentDate() {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('lost-date').value = today;
-            document.getElementById('found-date').value = today;
-        }
-
-        // Set up event listeners
-        function setupEventListeners() {
-            // Tab switching
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const tab = this.dataset.tab;
-                    switchTab(tab);
-                });
-            });
-
-            // Form inputs for progress tracking
-            setupFormProgressTracking();
-            
-            // Form submissions
-            setupFormSubmissions();
-        }
-
-        // Switch between tabs
-        function switchTab(tab) {
-            // Update tab buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-
-            // Update tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            document.getElementById(`${tab}-tab`).classList.add('active');
-
-            currentTab = tab;
-        }
-
-        // Handle quick actions
-        function handleQuickAction(action) {
-            // Update active state
-            document.querySelectorAll('.quick-action-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelector(`[data-action="${action}"]`).classList.add('active');
-
-            switch(action) {
-                case 'guide':
-                    showGuide();
-                    break;
-                case 'tips':
-                    showTips();
-                    break;
-                case 'help':
-                    showHelp();
-                    break;
-            }
-        }
-
-        // Show guide information
-        function showGuide() {
-            const message = `
-                <div class="success-message">
+                <p class="form-note">
                     <i class="fas fa-info-circle"></i>
-                    <div>
-                        <strong>Report Guide:</strong><br>
-                        • Provide accurate and detailed descriptions<br>
-                        • Include specific locations and dates<br>
-                        • Add contact information for follow-up<br>
-                        • Be honest about item condition and value
-                    </div>
-                </div>
-            `;
-            showTemporaryMessage(message);
-        }
-
-        // Show tips and best practices
-        function showTips() {
-            const message = `
-                <div class="success-message">
-                    <i class="fas fa-lightbulb"></i>
-                    <div>
-                        <strong>Tips & Best Practices:</strong><br>
-                        • Take photos if possible<br>
-                        • Note any unique identifying features<br>
-                        • Report as soon as possible<br>
-                        • Check with campus security first
-                    </div>
-                </div>
-            `;
-            showTemporaryMessage(message);
-        }
-
-        // Show help information
-        function showHelp() {
-            const message = `
-                <div class="success-message">
-                    <i class="fas fa-question-circle"></i>
-                    <div>
-                        <strong>Need Help?</strong><br>
-                        • Contact: lostfound@bubt.edu.bd<br>
-                        • Phone: +880 1234-567890<br>
-                        • Office: Student Affairs Building, Room 101<br>
-                        • Hours: 9:00 AM - 5:00 PM (Mon-Fri)
-                    </div>
-                </div>
-            `;
-            showTemporaryMessage(message);
-        }
-
-        // Show temporary message
-        function showTemporaryMessage(message) {
-            const container = document.querySelector('.container');
-            const messageDiv = document.createElement('div');
-            messageDiv.innerHTML = message;
-            messageDiv.style.marginBottom = '2rem';
-            
-            container.insertBefore(messageDiv, container.querySelector('.quick-actions'));
-            
-            setTimeout(() => {
-                messageDiv.remove();
-            }, 5000);
-        }
-
-        // Setup form progress tracking
-        function setupFormProgressTracking() {
-            const forms = ['lost', 'found'];
-            
-            forms.forEach(formType => {
-                const form = document.getElementById(`${formType}-form`);
-                const inputs = form.querySelectorAll('input, select, textarea');
+                    Note: The item must exist in the system. If not, {% if is_admin %}please create it first using "Create Item" page{% else %}please contact an administrator{% endif %}.
+                </p>
                 
-                inputs.forEach(input => {
-                    input.addEventListener('input', () => updateFormProgress(formType));
-                    input.addEventListener('change', () => updateFormProgress(formType));
-                    input.addEventListener('blur', () => updateFormProgress(formType));
-                });
-            });
-        }
+                <form id="lost-form" method="POST" action="{{ url_for('report') }}" class="simple-form">
+                    <input type="hidden" name="form_type" value="lost">
+                    
+                    <div class="form-grid">
+                        <!-- Item Name (Dropdown) -->
+                        <div class="form-group full-width">
+                            <label for="lost-item-name">Select Item *</label>
+                            <select id="lost-item-name" name="item-name" required>
+                                <option value="">Select an item from the system</option>
+                                {% for item in all_items %}
+                                <option value="{{ item.name }}">{{ item.name }} - {{ item.category|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-hint">If item is not in the list, {% if is_admin %}create it first using "Create Item" page{% else %}please contact an administrator{% endif %}</small>
+                        </div>
 
-        // Update form progress
-        function updateFormProgress(formType) {
-            const form = document.getElementById(`${formType}-form`);
-            const requiredFields = form.querySelectorAll('[required]');
-            const filledFields = Array.from(requiredFields).filter(field => {
-                if (field.type === 'date') {
-                    return field.value !== '';
-                } else if (field.tagName === 'SELECT') {
-                    return field.value !== '';
-                } else {
-                    return field.value.trim() !== '';
-                }
-            });
-            
-            const progress = Math.round((filledFields.length / requiredFields.length) * 100);
-            
-            const progressFill = document.getElementById(`${formType}-progress-fill`);
-            const progressText = document.getElementById(`${formType}-progress-text`);
-            
-            if (progressFill && progressText) {
-                progressFill.style.width = progress + '%';
-                progressText.textContent = progress + '%';
+                        <!-- Date Lost -->
+                        <div class="form-group">
+                            <label for="lost-date">Date Lost *</label>
+                            <input type="date" id="lost-date" name="date-lost" required>
+                        </div>
+
+                        <!-- Location Lost -->
+                        <div class="form-group">
+                            <label for="lost-location">Location Lost *</label>
+                            <input type="text" id="lost-location" name="location" placeholder="e.g., Main Library, 2nd Floor" required>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-group full-width">
+                            <label for="lost-description">Description *</label>
+                            <textarea id="lost-description" name="description" rows="4" placeholder="Provide detailed description of where and when you lost the item" required></textarea>
+                        </div>
+
+                        <!-- Contact Email -->
+                        <div class="form-group">
+                            <label for="lost-contact">Contact Email *</label>
+                            <input type="email" id="lost-contact" name="contact" placeholder="your.email@bubt.edu.bd" value="{{ session.get('email', '') }}" required>
+                        </div>
+
+                        <!-- Phone Number -->
+                        <div class="form-group">
+                            <label for="lost-phone">Phone Number</label>
+                            <input type="tel" id="lost-phone" name="phone" placeholder="e.g., +880 17XX XXX XXX">
+                        </div>
+
+                        <!-- Student ID -->
+                        <div class="form-group">
+                            <label for="lost-student-id">Student ID</label>
+                            <input type="text" id="lost-student-id" name="student-id" placeholder="e.g., 2024001">
+                        </div>
+
+                        <!-- Program -->
+                        <div class="form-group">
+                            <label for="lost-program">Program</label>
+                            <select id="lost-program" name="program">
+                                <option value="">Select Program</option>
+                                <option value="BSC">BSC</option>
+                                <option value="BBA">BBA</option>
+                                <option value="MBA">MBA</option>
+                                <option value="MCS">MCS</option>
+                                <option value="MSS">MSS</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Department -->
+                        <div class="form-group">
+                            <label for="lost-department">Department</label>
+                            <input type="text" id="lost-department" name="department" placeholder="e.g., Computer Science, Business Administration">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-paper-plane"></i> Submit Lost Item Report
+                        </button>
+                        <button type="reset" class="btn-reset">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Found Item Form -->
+        <div id="found-form-container" class="form-container">
+            <div class="simple-form-container">
+                <h1 class="form-title">
+                    <i class="fas fa-hand-holding-heart"></i>
+                    Report Found Item
+                </h1>
+                <p class="form-note">
+                    <i class="fas fa-info-circle"></i>
+                    Note: The item must exist in the system. If not, {% if is_admin %}please create it first using "Create Item" page{% else %}please contact an administrator{% endif %}.
+                </p>
                 
-                // Change color based on progress
-                if (progress < 50) {
-                    progressFill.style.background = '#ef4444';
-                } else if (progress < 100) {
-                    progressFill.style.background = '#f59e0b';
-                } else {
-                    progressFill.style.background = '#10b981';
-                }
-            }
-            
-            // Update form preview
-            updateFormPreview(formType);
-        }
+                <form id="found-form" method="POST" action="{{ url_for('report') }}" class="simple-form">
+                    <input type="hidden" name="form_type" value="found">
+                    
+                    <div class="form-grid">
+                        <!-- Item Name (Dropdown) -->
+                        <div class="form-group full-width">
+                            <label for="found-item-name">Select Item *</label>
+                            <select id="found-item-name" name="found-item-name" required>
+                                <option value="">Select an item from the system</option>
+                                {% for item in all_items %}
+                                <option value="{{ item.name }}">{{ item.name }} - {{ item.category|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-hint">If item is not in the list, {% if is_admin %}create it first using "Create Item" page{% else %}please contact an administrator{% endif %}</small>
+                        </div>
 
-        // Update form preview
-        function updateFormPreview(formType) {
-            const form = document.getElementById(`${formType}-form`);
-            const previewContent = document.getElementById(`${formType}-preview-content`);
-            const formData = new FormData(form);
+                        <!-- Date Found -->
+                        <div class="form-group">
+                            <label for="found-date">Date Found *</label>
+                            <input type="date" id="found-date" name="date-found" required>
+                        </div>
+
+                        <!-- Location Found -->
+                        <div class="form-group">
+                            <label for="found-location">Location Found *</label>
+                            <input type="text" id="found-location" name="found-location" placeholder="e.g., Student Center, Cafeteria" required>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-group full-width">
+                            <label for="found-description">Description *</label>
+                            <textarea id="found-description" name="found-description" rows="4" placeholder="Provide detailed description of where and when you found the item" required></textarea>
+                        </div>
+
+                        <!-- Contact Email -->
+                        <div class="form-group">
+                            <label for="found-contact">Contact Email *</label>
+                            <input type="email" id="found-contact" name="found-contact" placeholder="your.email@bubt.edu.bd" value="{{ session.get('email', '') }}" required>
+                        </div>
+
+                        <!-- Phone Number -->
+                        <div class="form-group">
+                            <label for="found-phone">Phone Number</label>
+                            <input type="tel" id="found-phone" name="found-phone" placeholder="e.g., +880 17XX XXX XXX">
+                        </div>
+
+                        <!-- Student ID -->
+                        <div class="form-group">
+                            <label for="found-student-id">Student ID</label>
+                            <input type="text" id="found-student-id" name="found-student-id" placeholder="e.g., 2024001">
+                        </div>
+
+                        <!-- Program -->
+                        <div class="form-group">
+                            <label for="found-program">Program</label>
+                            <select id="found-program" name="found-program">
+                                <option value="">Select Program</option>
+                                <option value="BSC">BSC</option>
+                                <option value="BBA">BBA</option>
+                                <option value="MBA">MBA</option>
+                                <option value="MCS">MCS</option>
+                                <option value="MSS">MSS</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Department -->
+                        <div class="form-group">
+                            <label for="found-department">Department</label>
+                            <input type="text" id="found-department" name="found-department" placeholder="e.g., Computer Science, Business Administration">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-hand-holding-heart"></i> Submit Found Item Report
+                        </button>
+                        <button type="reset" class="btn-reset">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching
+    const tabButtons = document.querySelectorAll('.report-tab-btn');
+    const formContainers = document.querySelectorAll('.form-container');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
             
-            let previewHTML = '';
-            let hasData = false;
+            // Update active tab
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
             
-            // Check if any fields have data
-            for (let [key, value] of formData.entries()) {
-                if (value.trim() !== '') {
-                    hasData = true;
-                    break;
-                }
-            }
+            // Show/hide forms
+            formContainers.forEach(container => {
+                container.classList.remove('active');
+            });
             
-            if (hasData) {
-                previewHTML = `
-                    <div class="preview-item">
-                        <div class="preview-label">Item Name</div>
-                        <div class="preview-value">${formData.get('item-name') || formData.get('found-item-name') || 'Not specified'}</div>
-                    </div>
-                    <div class="preview-item">
-                        <div class="preview-label">Category</div>
-                        <div class="preview-value">${formData.get('category') || formData.get('found-category') || 'Not specified'}</div>
-                    </div>
-                    <div class="preview-item">
-                        <div class="preview-label">Date</div>
-                        <div class="preview-value">${formData.get('date-lost') || formData.get('date-found') || 'Not specified'}</div>
-                    </div>
-                    <div class="preview-item">
-                        <div class="preview-label">Location</div>
-                        <div class="preview-value">${formData.get('location') || formData.get('found-location') || 'Not specified'}</div>
-                    </div>
-                    <div class="preview-item">
-                        <div class="preview-label">Description</div>
-                        <div class="preview-value">${formData.get('description') || formData.get('found-description') || 'Not specified'}</div>
-                    </div>
-                    <div class="preview-item">
-                        <div class="preview-label">Contact</div>
-                        <div class="preview-value">${formData.get('contact') || formData.get('found-contact') || 'Not specified'}</div>
-                    </div>
-                `;
+            if (targetTab === 'lost') {
+                document.getElementById('lost-form-container').classList.add('active');
             } else {
-                previewHTML = '<p style="text-align: center; color: #9ca3af; font-style: italic;">Fill out the form to see a preview of your report</p>';
+                document.getElementById('found-form-container').classList.add('active');
             }
-            
-            previewContent.innerHTML = previewHTML;
-        }
-
-        // Show form preview
-        function showFormPreview(formType) {
-            const preview = document.getElementById(`${formType}-preview`);
-            if (preview) {
-                preview.classList.add('show');
+        });
+    });
+    
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('lost-date').value = today;
+    document.getElementById('found-date').value = today;
+    
+    // Form submission handlers
+    const lostForm = document.getElementById('lost-form');
+    const foundForm = document.getElementById('found-form');
+    
+    if (lostForm) {
+        lostForm.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
             }
-        }
-
-        // Setup form submissions
-        function setupFormSubmissions() {
-            // Lost item form
-            document.getElementById('lost-form').addEventListener('submit', function(e) {
-                if (!handleFormSubmission('lost', this)) {
-                    e.preventDefault();
-                }
-            });
-
-            // Found item form
-            document.getElementById('found-form').addEventListener('submit', function(e) {
-                if (!handleFormSubmission('found', this)) {
-                    e.preventDefault();
-                }
-            });
-        }
-
-        // Handle form submission
-        function handleFormSubmission(formType, form) {
-            // Validate form before submission
-            const formData = new FormData(form);
-            const data = {};
-            
-            for (let [key, value] of formData.entries()) {
-                data[key] = value;
+        });
+    }
+    
+    if (foundForm) {
+        foundForm.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
             }
-            
-            // Validate form
-            if (!validateForm(formType, data)) {
-                return false; // Prevent submission if validation fails
-            }
-            
-            // Show loading state
-            showLoadingState(formType);
-            
-            // Form will submit to Flask backend automatically
-            // Flask will handle database storage
-            return true; // Allow form submission
-        }
-
-        // Validate form
-        function validateForm(formType, data) {
-            const requiredFields = formType === 'lost' ? 
-                ['item-name', 'category', 'date-lost', 'location', 'description', 'contact'] :
-                ['found-item-name', 'found-category', 'date-found', 'found-location', 'found-description', 'found-contact'];
-            
-            for (let field of requiredFields) {
-                if (!data[field] || data[field].trim() === '') {
-                    showFieldError(field, 'This field is required');
-                    return false;
-                }
-            }
-            
-            // Validate email
-            const emailField = formType === 'lost' ? 'contact' : 'found-contact';
-            if (!isValidEmail(data[emailField])) {
-                showFieldError(emailField, 'Please enter a valid email address');
-                return false;
-            }
-            
-            return true;
-        }
-
-        // Show field error
-        function showFieldError(fieldName, message) {
-            const field = document.getElementById(fieldName);
-            if (field) {
-                clearFieldError(field);
-                
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'field-error';
-                errorDiv.textContent = message;
-                
-                field.parentNode.appendChild(errorDiv);
-                field.classList.add('error');
-            }
-        }
-
-        // Clear field error
-        function clearFieldError(field) {
-            const errorDiv = field.parentNode.querySelector('.field-error');
-            if (errorDiv) {
-                errorDiv.remove();
-            }
-            field.classList.remove('error');
-        }
-
-        // Validate email format
-        function isValidEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
-        }
-
-        // Show loading state
-        function showLoadingState(formType) {
-            const form = document.getElementById(`${formType}-form`);
-            const submitBtn = form.querySelector('.btn');
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-        }
-
-        // Hide loading state (re-enable button after timeout in case of error)
-        function hideLoadingState(formType) {
-            setTimeout(() => {
-                const form = document.getElementById(`${formType}-form`);
-                if (form) {
-                    const submitBtn = form.querySelector('.btn');
-                    if (submitBtn && submitBtn.disabled) {
-                        submitBtn.disabled = false;
-                        
-                        if (formType === 'lost') {
-                            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Lost Item Report';
-                        } else {
-                            submitBtn.innerHTML = '<i class="fas fa-hand-holding-heart"></i> Submit Found Item Report';
-                        }
-                    }
-                }
-            }, 5000);
-        }
-
-        // Show success message (now handled by Flask flash messages)
-        function showSuccessMessage(formType, data) {
-            // Flash messages are handled by Flask backend
-            // This function is kept for compatibility but won't be called
-        }
-
-        // Reset form
-        function resetForm(formType) {
-            const form = document.getElementById(`${formType}-form`);
-            form.reset();
-            
-            // Reset date to current date
-            const dateField = formType === 'lost' ? 'lost-date' : 'found-date';
-            document.getElementById(dateField).value = new Date().toISOString().split('T')[0];
-            
-            // Update progress and preview
-            updateFormProgress(formType);
-            updateFormPreview(formType);
-        }
-
-        // Add form animations
-        function addFormAnimations() {
-            const forms = document.querySelectorAll('.report-form');
-            
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('animate-in');
-                    }
-                });
-            }, { threshold: 0.1 });
-            
-            forms.forEach(form => {
-                observer.observe(form);
-            });
-        }
-
-        // Initialize animations when page loads
-        setTimeout(addFormAnimations, 100);
-    </script>
+        });
+    }
+});
+</script>
 {% endblock %}

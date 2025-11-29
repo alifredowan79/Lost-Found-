@@ -1,36 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Items - BUBT Lost and Found System</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/search-styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body>
-    <header class="header">
-        <nav class="nav">
-            <div class="nav-brand">
-                <i class="fas fa-search-location"></i>
-                <h1>BUBT Lost & Found</h1>
-            </div>
-            <ul class="nav-menu">
-                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
-                <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
-                <li><a href="{{ url_for('report') }}" class="nav-link">Report Items</a></li>
-                <li><a href="{{ url_for('search') }}" class="nav-link active">Search Items</a></li>
-                <li><a href="{{ url_for('invoice') }}" class="nav-link">Generate Invoice</a></li>
-                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
-            </ul>
-            <div class="nav-toggle">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </nav>
-    </header>
+{% extends "base.html" %}
+
+{% block title %}Search Items - BUBT Lost and Found System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/search-styles.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="header">
+    <nav class="nav">
+        <div class="nav-brand">
+            <i class="fas fa-search-location"></i>
+            <h1>BUBT Lost & Found</h1>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+            {% if is_admin %}
+            <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
+            {% endif %}
+            <li><a href="{{ url_for('report') }}" class="nav-link">Report Items</a></li>
+            <li><a href="{{ url_for('search') }}" class="nav-link active">Search Items</a></li>
+            <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+            {% if is_admin %}
+            <li><a href="{{ url_for('admin_files') }}" class="nav-link" style="color: #f59e0b;">
+                <i class="fas fa-shield-alt"></i> Admin Files
+            </a></li>
+            {% endif %}
+        </ul>
+        <div class="nav-user">
+            <span class="user-email">{{ session.get('email', 'user@bubt.edu.bd') }}</span>
+            <button class="btn btn-outline btn-sm" onclick="window.location.href='{{ url_for('logout') }}'">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+        <div class="nav-toggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+</header>
 
     <main class="main">
         <!-- Hero Section -->
@@ -71,7 +80,7 @@
                 <!-- Search and Filter Controls -->
                 <div class="search-controls">
                     <div class="search-box">
-                        <input type="text" id="search-input" placeholder="Search by item name, description, or location...">
+                        <input type="text" id="search-input" placeholder="Search by item name, description, or location..." value="{{ search_term or '' }}">
                         <button class="search-btn" onclick="performSearch()">
                             <i class="fas fa-search"></i> Search
                         </button>
@@ -198,14 +207,11 @@
 
         // Initialize search page
         document.addEventListener('DOMContentLoaded', function() {
-            // Check login status first
-            checkLoginStatus();
+            // Load items from backend
+            loadItemsFromBackend();
             
             // Initialize search functionality
             initializeSearch();
-            
-            // Load sample data
-            loadSampleData();
             
             // Set up event listeners
             setupEventListeners();
@@ -214,11 +220,34 @@
             performSearch();
         });
 
-        // Check if user is logged in
-        function checkLoginStatus() {
-            // Flask already handles authentication, so this check is not needed
-            // But we can keep it for client-side validation if needed
-            // Authentication is handled by Flask session in the backend
+        // Load items from backend (LostFoundItem table)
+        function loadItemsFromBackend() {
+            // Items are passed from Flask backend
+            {% if items %}
+            allItems = [
+                {% for item in items %}
+                {
+                    id: {{ item.id }},
+                    name: "{{ item.name }}",
+                    category: "{{ item.category }}",
+                    status: "{{ item.status }}",
+                    date: "{{ item.date.strftime('%Y-%m-%d') }}",
+                    location: "{{ item.location }}",
+                    description: "{{ item.description|replace('"', '\\"') }}",
+                    contact: "{{ item.contact }}",
+                    phone: "{{ item.phone or '' }}",
+                    student_id: "{{ item.student_id or '' }}",
+                    program: "{{ item.program or '' }}",
+                    department: "{{ item.department or '' }}"
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+            {% else %}
+            allItems = [];
+            {% endif %}
+            
+            filteredItems = [...allItems];
+            updateResultsDisplay();
         }
 
         // Initialize search functionality
@@ -231,53 +260,6 @@
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             document.getElementById('filter-date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
-        }
-
-        // Load sample data
-        function loadSampleData() {
-            if (typeof sampleItems !== 'undefined') {
-                allItems = [...sampleItems];
-            } else {
-                // Fallback sample data if script.js is not loaded
-                allItems = [
-                    {
-                        id: 1,
-                        name: "iPhone 13 Pro",
-                        category: "electronics",
-                        status: "lost",
-                        date: "2024-01-15",
-                        location: "Main Library, 2nd Floor",
-                        description: "Gold iPhone 13 Pro with clear case",
-                        color: "Gold",
-                        brand: "Apple",
-                        value: 120000
-                    },
-                    {
-                        id: 2,
-                        name: "Gold Necklace",
-                        category: "jewelry",
-                        status: "found",
-                        date: "2024-01-14",
-                        location: "Student Center",
-                        description: "Delicate gold necklace with small pendant",
-                        color: "Gold",
-                        brand: "Unknown",
-                        value: 25000
-                    },
-                    {
-                        id: 3,
-                        name: "Samsung Galaxy Watch",
-                        category: "electronics",
-                        status: "lost",
-                        date: "2024-01-13",
-                        location: "Gymnasium",
-                        description: "Black Samsung Galaxy Watch 4",
-                        color: "Black",
-                        brand: "Samsung",
-                        value: 35000
-                    }
-                ];
-            }
         }
 
         // Set up event listeners
@@ -329,9 +311,6 @@
                 const dateFrom = document.getElementById('filter-date-from').value;
                 const dateTo = document.getElementById('filter-date-to').value;
                 const location = document.getElementById('filter-location').value.toLowerCase();
-                const color = document.getElementById('filter-color').value.toLowerCase();
-                const brand = document.getElementById('filter-brand').value.toLowerCase();
-                const maxValue = document.getElementById('filter-value').value;
 
                 // Filter items
                 filteredItems = allItems.filter(item => {
@@ -357,23 +336,10 @@
 
                     // Location filter
                     const matchesLocation = !location || 
-                        item.location.toLowerCase().includes(location);
-
-                    // Color filter
-                    const matchesColor = !color || 
-                        (item.color && item.color.toLowerCase().includes(color));
-
-                    // Brand filter
-                    const matchesBrand = !brand || 
-                        (item.brand && item.brand.toLowerCase().includes(brand));
-
-                    // Value filter
-                    const matchesValue = !maxValue || 
-                        (item.value && item.value <= parseInt(maxValue));
+                        (item.location && item.location.toLowerCase().includes(location));
 
                     return matchesSearch && matchesCategory && matchesStatus && 
-                           matchesDate && matchesLocation && matchesColor && 
-                           matchesBrand && matchesValue;
+                           matchesDate && matchesLocation;
                 });
 
                 // Sort results
@@ -473,10 +439,13 @@
             const itemsGrid = document.getElementById('items-grid');
             
             itemsGrid.innerHTML = items.map(item => `
-                <div class="item-card ${item.status} fade-in" onclick="viewItemDetails(${item.id})">
+                <div class="item-card ${item.status} fade-in">
                     <div class="item-header">
-                        <h3 class="item-title">${item.name}</h3>
-                        <span class="item-status ${item.status}">${item.status.toUpperCase()}</span>
+                        <h3 class="item-title">${escapeHtml(item.name)}</h3>
+                        <span class="item-status-badge ${item.status}">
+                            <i class="fas fa-${item.status === 'lost' ? 'exclamation-triangle' : 'check-circle'}"></i>
+                            ${item.status.toUpperCase()}
+                        </span>
                     </div>
                     
                     <div class="item-category">
@@ -491,37 +460,59 @@
                         </div>
                         <div class="item-detail">
                             <i class="fas fa-map-marker-alt"></i>
-                            <span>${item.location}</span>
+                            <span>${escapeHtml(item.location)}</span>
                         </div>
-                        ${item.color ? `<div class="item-detail">
-                            <i class="fas fa-palette"></i>
-                            <span>${item.color}</span>
+                        <div class="item-detail">
+                            <i class="fas fa-envelope"></i>
+                            <span>${escapeHtml(item.contact)}</span>
+                        </div>
+                        ${item.phone ? `<div class="item-detail">
+                            <i class="fas fa-phone"></i>
+                            <span>${escapeHtml(item.phone)}</span>
                         </div>` : ''}
-                        ${item.brand ? `<div class="item-detail">
-                            <i class="fas fa-tag"></i>
-                            <span>${item.brand}</span>
+                        ${item.student_id ? `<div class="item-detail">
+                            <i class="fas fa-id-card"></i>
+                            <span>Student ID: ${escapeHtml(item.student_id)}</span>
                         </div>` : ''}
-                        ${item.value ? `<div class="item-detail">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <span>${item.value.toLocaleString()} BDT</span>
+                        ${item.program ? `<div class="item-detail">
+                            <i class="fas fa-graduation-cap"></i>
+                            <span>Program: ${escapeHtml(item.program)}</span>
+                        </div>` : ''}
+                        ${item.department ? `<div class="item-detail">
+                            <i class="fas fa-building"></i>
+                            <span>Department: ${escapeHtml(item.department)}</span>
                         </div>` : ''}
                     </div>
                     
-                    <div class="item-description">${item.description}</div>
+                    <div class="item-description">${escapeHtml(item.description)}</div>
                     
                     <div class="item-footer">
                         <span class="item-date">${formatDate(item.date)}</span>
                         <div class="item-actions">
-                            <button class="btn-sm btn-outline" onclick="event.stopPropagation(); contactOwner(${item.id})">
+                            <button class="btn-sm btn-outline" onclick="contactOwner('${escapeHtml(item.contact)}', '${item.phone || ''}')">
                                 <i class="fas fa-envelope"></i> Contact
-                            </button>
-                            <button class="btn-sm btn-primary" onclick="event.stopPropagation(); viewItemDetails(${item.id})">
-                                <i class="fas fa-eye"></i> View
                             </button>
                         </div>
                     </div>
                 </div>
             `).join('');
+        }
+        
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Contact owner function
+        function contactOwner(email, phone) {
+            let contactInfo = `Email: ${email}`;
+            if (phone) {
+                contactInfo += `\nPhone: ${phone}`;
+            }
+            alert(`Contact Information:\n\n${contactInfo}`);
         }
 
         // Display pagination
@@ -667,14 +658,5 @@
             };
         }
 
-        // Placeholder functions for future implementation
-        function viewItemDetails(itemId) {
-            alert(`Viewing details for item ${itemId}. This feature will be implemented soon!`);
-        }
-
-        function contactOwner(itemId) {
-            alert(`Contacting owner of item ${itemId}. This feature will be implemented soon!`);
-        }
     </script>
-</body>
-</html>
+{% endblock %}

@@ -92,10 +92,12 @@ class User(db.Model):
     is_admin = db.Column(db.Boolean, default=False)
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        # Store password in plain text (normal format)
+        self.password_hash = password
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        # Compare plain text passwords
+        return self.password_hash == password
     
     def is_admin_user(self):
         """Check if user is admin"""
@@ -103,62 +105,48 @@ class User(db.Model):
 
 
 class Item(db.Model):
-    """Lost and Found Item model"""
+    """Lost and Found Item model - Simplified with name as primary key"""
+    # Primary key
+    name = db.Column(db.String(200), primary_key=True)  # Item Name *
+    
+    # Required fields
+    category = db.Column(db.String(50), nullable=False)  # Category *
+    date = db.Column(db.Date, nullable=False)  # Date *
+    description = db.Column(db.Text, nullable=False)  # Description *
+    
+    # Optional fields
+    color = db.Column(db.String(50), nullable=True)  # Color (optional)
+    brand = db.Column(db.String(100), nullable=True)  # Brand/Model (optional)
+    value = db.Column(db.Float, nullable=True)  # Estimated Value (optional)
+
+
+class LostFoundItem(db.Model):
+    """Lost and Found Items reported through report screen"""
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False)
-    category = db.Column(db.String(50), nullable=False)
+    
+    # Item information - name is foreign key to Item table (composite key)
+    name = db.Column(db.String(200), db.ForeignKey('item.name'), nullable=False)  # Item Name * (Foreign Key)
+    category = db.Column(db.String(50), nullable=False)  # Category *
+    date = db.Column(db.Date, nullable=False)  # Date Lost/Found *
+    location = db.Column(db.String(200), nullable=False)  # Location Lost/Found *
+    description = db.Column(db.Text, nullable=False)  # Description *
+    
+    # Contact information
+    contact = db.Column(db.String(120), nullable=False)  # Contact Email *
+    phone = db.Column(db.String(20), nullable=True)  # Phone Number (optional)
+    student_id = db.Column(db.String(50), nullable=True)  # Student ID (optional)
+    program = db.Column(db.String(50), nullable=True)  # Program (BSC, BBA, MBA, MCS, etc.) (optional)
+    department = db.Column(db.String(100), nullable=True)  # Department (optional)
+    
+    # Status
     status = db.Column(db.String(20), nullable=False)  # 'lost' or 'found'
-    date = db.Column(db.Date, nullable=False)
-    location = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    contact = db.Column(db.String(120), nullable=False)
-    icon = db.Column(db.String(50), default='fas fa-question-circle')
     
-    # Additional fields
-    building = db.Column(db.String(100))
-    floor = db.Column(db.String(50))
-    color = db.Column(db.String(50))
-    brand = db.Column(db.String(100))
-    value = db.Column(db.Float)
-    phone = db.Column(db.String(20))
-    student_id = db.Column(db.String(50))
-    notes = db.Column(db.Text)
-    priority = db.Column(db.String(20), default='medium')
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class Invoice(db.Model):
-    """Invoice model for found items"""
-    id = db.Column(db.Integer, primary_key=True)
-    invoice_number = db.Column(db.String(50), unique=True, nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    due_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, paid, overdue, cancelled
-    
-    # Client information
-    client_name = db.Column(db.String(200), nullable=False)
-    client_email = db.Column(db.String(120), nullable=False)
-    client_phone = db.Column(db.String(20))
-    client_id = db.Column(db.String(50))
-    
-    # Item information
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
-    item_description = db.Column(db.Text)
-    item_location = db.Column(db.String(200))
-    item_date = db.Column(db.Date)
-    
-    # Fees
-    processing_fee = db.Column(db.Float, default=5.00)
-    storage_fee = db.Column(db.Float, default=2.00)
-    late_fee = db.Column(db.Float, default=1.00)
-    total_amount = db.Column(db.Float, nullable=False)
-    
-    notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    item = db.relationship('Item', backref=db.backref('invoices', lazy=True))
+    # Relationship to Item table
+    item = db.relationship('Item', backref=db.backref('lost_found_items', lazy=True))
 
 
 # Authentication Helper
@@ -201,11 +189,6 @@ def format_date(date_obj):
     return date_obj.strftime('%b %d, %Y')
 
 
-def generate_invoice_number():
-    """Generate unique invoice number"""
-    timestamp = int(datetime.now().timestamp() * 1000)
-    random = db.session.query(Invoice).count() + 1
-    return f'INV-{timestamp}-{random}'
 
 
 # Routes
@@ -334,13 +317,19 @@ def register():
         if User.query.filter_by(email=email).first():
             errors.append('Email already registered')
         
-        if errors:
-            error_message = '; '.join(errors)
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-                return jsonify({'success': False, 'message': error_message}), 400
-            for error in errors:
-                flash(error, 'error')
-            return render_template('register.html')
+            if errors:
+                error_message = '; '.join(errors)
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                    return jsonify({'success': False, 'message': error_message}), 400
+                for error in errors:
+                    flash(error, 'error')
+                # Check if user is admin for template
+                user = None
+                is_admin = False
+                if 'user_id' in session:
+                    user = User.query.get(session.get('user_id'))
+                    is_admin = user.is_admin_user() if user else False
+                return render_template('register.html', is_admin=is_admin)
         
         # Create new user
         try:
@@ -372,9 +361,22 @@ def register():
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
                 return jsonify({'success': False, 'message': error_msg}), 500
             flash(error_msg, 'error')
-            return render_template('register.html')
+            # Check if user is admin for template
+            user = None
+            is_admin = False
+            if 'user_id' in session:
+                user = User.query.get(session.get('user_id'))
+                is_admin = user.is_admin_user() if user else False
+            return render_template('register.html', is_admin=is_admin)
     
-    return render_template('register.html')
+    # Check if user is admin for template
+    user = None
+    is_admin = False
+    if 'user_id' in session:
+        user = User.query.get(session.get('user_id'))
+        is_admin = user.is_admin_user() if user else False
+    
+    return render_template('register.html', is_admin=is_admin)
 
 
 @app.route('/logout')
@@ -393,28 +395,46 @@ def dashboard():
         flash('Please login to access the dashboard', 'warning')
         return redirect(url_for('login'))
     
-    # Get statistics
+    # Get real-time statistics from database
     total_items = Item.query.count()
-    lost_items = Item.query.filter_by(status='lost').count()
-    found_items = Item.query.filter_by(status='found').count()
-    total_invoices = Invoice.query.count()
+    total_lost_found = LostFoundItem.query.count()
+    
+    # Get lost and found counts from LostFoundItem table
+    lost_items_count = LostFoundItem.query.filter_by(status='lost').count()
+    found_items_count = LostFoundItem.query.filter_by(status='found').count()
     
     # Get today's summary
     today = datetime.now().date()
-    today_lost = Item.query.filter(
-        Item.status == 'lost',
+    today_items = Item.query.filter(
         db.func.date(Item.date) == today
     ).count()
-    today_found = Item.query.filter(
-        Item.status == 'found',
-        db.func.date(Item.date) == today
+    today_lost = LostFoundItem.query.filter(
+        db.func.date(LostFoundItem.date) == today,
+        LostFoundItem.status == 'lost'
     ).count()
-    today_invoices = Invoice.query.filter(
-        db.func.date(Invoice.date) == today
+    today_found = LostFoundItem.query.filter(
+        db.func.date(LostFoundItem.date) == today,
+        LostFoundItem.status == 'found'
     ).count()
     
-    # Get recent items
-    recent_items = Item.query.order_by(Item.created_at.desc()).limit(10).all()
+    # Get recent lost/found items (from LostFoundItem table)
+    recent_lost_found = LostFoundItem.query.order_by(
+        LostFoundItem.created_at.desc()
+    ).limit(10).all()
+    
+    # Get recent items (from Item table)
+    recent_items = Item.query.order_by(Item.date.desc()).limit(10).all()
+    
+    # Get weekly statistics (last 7 days)
+    seven_days_ago = datetime.now().date() - timedelta(days=7)
+    weekly_lost = LostFoundItem.query.filter(
+        LostFoundItem.date >= seven_days_ago,
+        LostFoundItem.status == 'lost'
+    ).count()
+    weekly_found = LostFoundItem.query.filter(
+        LostFoundItem.date >= seven_days_ago,
+        LostFoundItem.status == 'found'
+    ).count()
     
     # Check if user is admin
     user = User.query.get(session.get('user_id'))
@@ -422,13 +442,16 @@ def dashboard():
     
     return render_template('dashboard.html',
                          total_items=total_items,
-                         lost_items=lost_items,
-                         found_items=found_items,
-                         total_invoices=total_invoices,
+                         total_lost_found=total_lost_found,
+                         lost_items=lost_items_count,
+                         found_items=found_items_count,
+                         today_items=today_items,
                          today_lost=today_lost,
                          today_found=today_found,
-                         today_invoices=today_invoices,
+                         weekly_lost=weekly_lost,
+                         weekly_found=weekly_found,
                          recent_items=recent_items,
+                         recent_lost_found=recent_lost_found,
                          username=session.get('username', 'User'),
                          is_admin=is_admin)
 
@@ -448,25 +471,38 @@ def report():
                 # Get form data based on form type
                 if form_type == 'lost':
                     item_name = request.form.get('item-name', '').strip()
-                    item_category = request.form.get('category', '').strip()
                     item_date_str = request.form.get('date-lost', '').strip()
                     item_location = request.form.get('location', '').strip()
                     item_description = request.form.get('description', '').strip()
                     item_contact = request.form.get('contact', '').strip()
                     item_phone = request.form.get('phone', '').strip()
+                    item_student_id = request.form.get('student-id', '').strip()
+                    item_program = request.form.get('program', '').strip()
+                    item_department = request.form.get('department', '').strip()
                 else:  # found
                     item_name = request.form.get('found-item-name', '').strip()
-                    item_category = request.form.get('found-category', '').strip()
                     item_date_str = request.form.get('date-found', '').strip()
                     item_location = request.form.get('found-location', '').strip()
                     item_description = request.form.get('found-description', '').strip()
                     item_contact = request.form.get('found-contact', '').strip()
                     item_phone = request.form.get('found-phone', '').strip()
+                    item_student_id = request.form.get('found-student-id', '').strip()
+                    item_program = request.form.get('found-program', '').strip()
+                    item_department = request.form.get('found-department', '').strip()
                 
                 # Validate required fields
-                if not all([item_name, item_category, item_date_str, item_location, item_description, item_contact]):
+                if not all([item_name, item_date_str, item_location, item_description, item_contact]):
                     flash('Please fill in all required fields', 'error')
                     return redirect(url_for('report'))
+                
+                # Check if item exists in Item table (name must exist as foreign key)
+                existing_item = Item.query.filter_by(name=item_name).first()
+                if not existing_item:
+                    flash(f'Item "{item_name}" does not exist in the system. Please create the item first using "Create Item" page.', 'error')
+                    return redirect(url_for('report'))
+                
+                # Get category from the existing item
+                item_category = existing_item.category
                 
                 # Parse date
                 try:
@@ -475,20 +511,23 @@ def report():
                     flash('Invalid date format', 'error')
                     return redirect(url_for('report'))
                 
-                # Create new item
-                new_item = Item(
-                    name=item_name,
-                    category=item_category,
-                    status=form_type,
+                # Create new lost/found item in LostFoundItem table
+                # name is foreign key referencing Item.name
+                new_lost_found_item = LostFoundItem(
+                    name=item_name,  # Foreign key to Item.name
+                    category=item_category,  # Get from Item table
                     date=item_date,
                     location=item_location,
                     description=item_description,
                     contact=item_contact,
                     phone=item_phone if item_phone else None,
-                    icon=get_category_icon(item_category)
+                    student_id=item_student_id if item_student_id else None,
+                    program=item_program if item_program else None,
+                    department=item_department if item_department else None,
+                    status=form_type  # 'lost' or 'found'
                 )
                 
-                db.session.add(new_item)
+                db.session.add(new_lost_found_item)
                 db.session.commit()
                 
                 flash(f'{form_type.capitalize()} item reported successfully!', 'success')
@@ -500,10 +539,21 @@ def report():
                 flash(f'Error submitting report: {str(e)}', 'error')
                 return redirect(url_for('report'))
         
+        # Get all items from Item table for dropdown selection
+        all_items = Item.query.order_by(Item.name.asc()).all()
+        
+        # Get all lost and found items for display
+        lost_items = LostFoundItem.query.filter_by(status='lost').order_by(LostFoundItem.date.desc()).all()
+        found_items = LostFoundItem.query.filter_by(status='found').order_by(LostFoundItem.date.desc()).all()
+        
         # Check if user is admin
         is_admin = require_admin()
         
-        return render_template('report.html', is_admin=is_admin)
+        return render_template('report.html', 
+                             is_admin=is_admin,
+                             all_items=all_items,
+                             lost_items=lost_items,
+                             found_items=found_items)
     except Exception as e:
         app.logger.error(f'Error in report route: {str(e)}')
         flash('Error loading page. Please try again.', 'error')
@@ -526,47 +576,47 @@ def search():
         date_to = request.args.get('date_to', '')
         location = request.args.get('location', '').lower()
         
-        # Build query
-        query = Item.query
+        # Build query for LostFoundItem table (shows lost/found items with status)
+        query = LostFoundItem.query
         
         if search_term:
             query = query.filter(
                 db.or_(
-                    Item.name.ilike(f'%{search_term}%'),
-                    Item.description.ilike(f'%{search_term}%'),
-                    Item.location.ilike(f'%{search_term}%')
+                    LostFoundItem.name.ilike(f'%{search_term}%'),
+                    LostFoundItem.description.ilike(f'%{search_term}%'),
+                    LostFoundItem.location.ilike(f'%{search_term}%')
                 )
             )
         
         if category:
-            query = query.filter(Item.category == category)
+            query = query.filter(LostFoundItem.category == category)
         
         if status:
-            query = query.filter(Item.status == status)
+            query = query.filter(LostFoundItem.status == status)
         
         if date_from:
-            query = query.filter(Item.date >= datetime.strptime(date_from, '%Y-%m-%d').date())
+            query = query.filter(LostFoundItem.date >= datetime.strptime(date_from, '%Y-%m-%d').date())
         
         if date_to:
-            query = query.filter(Item.date <= datetime.strptime(date_to, '%Y-%m-%d').date())
+            query = query.filter(LostFoundItem.date <= datetime.strptime(date_to, '%Y-%m-%d').date())
         
         if location:
-            query = query.filter(Item.location.ilike(f'%{location}%'))
+            query = query.filter(LostFoundItem.location.ilike(f'%{location}%'))
         
         # Get sort parameter
         sort_by = request.args.get('sort', 'date-desc')
         if sort_by == 'date-desc':
-            query = query.order_by(Item.date.desc())
+            query = query.order_by(LostFoundItem.date.desc())
         elif sort_by == 'date-asc':
-            query = query.order_by(Item.date.asc())
+            query = query.order_by(LostFoundItem.date.asc())
         elif sort_by == 'name-asc':
-            query = query.order_by(Item.name.asc())
+            query = query.order_by(LostFoundItem.name.asc())
         elif sort_by == 'name-desc':
-            query = query.order_by(Item.name.desc())
+            query = query.order_by(LostFoundItem.name.desc())
         elif sort_by == 'category':
-            query = query.order_by(Item.category.asc())
+            query = query.order_by(LostFoundItem.category.asc())
         elif sort_by == 'status':
-            query = query.order_by(Item.status.asc())
+            query = query.order_by(LostFoundItem.status.asc())
         
         items = query.all()
         
@@ -574,7 +624,7 @@ def search():
         user = User.query.get(session.get('user_id'))
         is_admin = user.is_admin_user() if user else False
         
-        print(f"[DEBUG] Rendering search.html with {len(items)} items")
+        print(f"[DEBUG] Rendering search.html with {len(items)} lost/found items")
         result = render_template('search.html', 
                              items=items, 
                              search_term=search_term,
@@ -593,10 +643,16 @@ def search():
 
 @app.route('/create-item', methods=['GET', 'POST'])
 def create_item():
-    """Create new item page"""
+    """Create new item page - Admin only"""
     if 'user_id' not in session:
         flash('Please login to create items', 'warning')
         return redirect(url_for('login'))
+    
+    # Check if user is admin
+    user = User.query.get(session.get('user_id'))
+    if not user or not user.is_admin_user():
+        flash('Access denied. Only admin users can create items.', 'error')
+        return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         try:
@@ -614,8 +670,14 @@ def create_item():
             item_contact = session.get('email', '')
             
             # Validate required fields
-            if not all([item_name, item_category, item_date_str, item_location, item_description, item_contact]):
+            if not all([item_name, item_category, item_date_str, item_description]):
                 flash('Please fill in all required fields', 'error')
+                return redirect(url_for('create_item'))
+            
+            # Check if item with same name already exists
+            existing_item = Item.query.filter_by(name=item_name).first()
+            if existing_item:
+                flash('An item with this name already exists. Please use a different name.', 'error')
                 return redirect(url_for('create_item'))
             
             # Parse date
@@ -633,19 +695,15 @@ def create_item():
                 except ValueError:
                     item_value = None
             
-            # Create new item (default status as 'found' for created items)
+            # Create new item
             new_item = Item(
                 name=item_name,
                 category=item_category,
-                status='found',  # Default status for created items
                 date=item_date,
-                location=item_location,
                 description=item_description,
-                contact=item_contact,
                 color=item_color if item_color else None,
                 brand=item_brand if item_brand else None,
-                value=item_value,
-                icon=get_category_icon(item_category)
+                value=item_value
             )
             
             db.session.add(new_item)
@@ -665,8 +723,16 @@ def create_item():
         user = User.query.get(session.get('user_id'))
         is_admin = user.is_admin_user() if user else False
         
-        # Get available items (status='found') - limit to 12 most recent
-        available_items = Item.query.filter_by(status='found').order_by(Item.date.desc()).limit(12).all()
+        # Get all items from database - show minimum 10 most recent items
+        # Order by date descending for most recent first
+        available_items = Item.query.order_by(Item.date.desc()).limit(10).all()
+        
+        # Debug: Print item count and first item details to confirm database data
+        print(f"[DEBUG] Available items from DATABASE: {len(available_items)} items found")
+        if available_items:
+            print(f"[DEBUG] First item from DB: {available_items[0].name} - {available_items[0].category} - Date: {available_items[0].date}")
+        else:
+            print(f"[DEBUG] No items found in database")
         
         print(f"[DEBUG] Rendering create-item.html for user: {session.get('username')}")
         result = render_template('create-item.html', 
@@ -684,74 +750,70 @@ def create_item():
         return redirect(url_for('dashboard'))
 
 
-@app.route('/invoice', methods=['GET', 'POST'])
-def invoice():
-    """Invoice generation page"""
-    if 'user_id' not in session:
-        flash('Please login to generate invoices', 'warning')
-        return redirect(url_for('login'))
-    
-    try:
-        if request.method == 'POST':
-            # Create new invoice
-            new_invoice = Invoice(
-                invoice_number=generate_invoice_number(),
-                date=datetime.strptime(request.form.get('invoice-date'), '%Y-%m-%d').date(),
-                due_date=datetime.strptime(request.form.get('due-date'), '%Y-%m-%d').date(),
-                status=request.form.get('invoice-status', 'pending'),
-                client_name=request.form.get('client-name'),
-                client_email=request.form.get('client-email'),
-                client_phone=request.form.get('client-phone'),
-                client_id=request.form.get('client-id'),
-                item_id=int(request.form.get('invoice-item')),
-                item_description=request.form.get('item-description'),
-                item_location=request.form.get('item-location'),
-                item_date=datetime.strptime(request.form.get('item-date'), '%Y-%m-%d').date() if request.form.get('item-date') else None,
-                processing_fee=float(request.form.get('processing-fee', 5.00)),
-                storage_fee=float(request.form.get('storage-fee', 2.00)),
-                late_fee=float(request.form.get('late-fee', 1.00)),
-                total_amount=float(request.form.get('total-amount')),
-                notes=request.form.get('invoice-notes')
-            )
-            
-            db.session.add(new_invoice)
-            db.session.commit()
-            
-            flash('Invoice generated successfully!', 'success')
-            return redirect(url_for('invoice'))
-        
-        # Get found items for dropdown
-        found_items = Item.query.filter_by(status='found').all()
-        invoices = Invoice.query.order_by(Invoice.created_at.desc()).all()
-        
-        # Calculate statistics
-        total_invoices = Invoice.query.count()
-        total_revenue = db.session.query(db.func.sum(Invoice.total_amount)).scalar() or 0
-        this_month = Invoice.query.filter(
-            db.extract('month', Invoice.date) == datetime.now().month,
-            db.extract('year', Invoice.date) == datetime.now().year
-        ).count()
-        
-        return render_template('invoice.html',
-                             found_items=found_items,
-                             invoices=invoices,
-                             total_invoices=total_invoices,
-                             total_revenue=total_revenue,
-                             this_month=this_month)
-    except Exception as e:
-        app.logger.error(f'Error in invoice route: {str(e)}')
-        flash('Error loading page. Please try again.', 'error')
-        return redirect(url_for('dashboard'))
-
-
 @app.route('/about')
 def about():
-    """About page"""
+    """About page with real-time statistics"""
     if 'user_id' not in session:
         flash('Please login to view this page', 'warning')
         return redirect(url_for('login'))
     try:
-        return render_template('about.html')
+        # Get real-time statistics
+        total_items = Item.query.count()
+        total_lost_found_items = LostFoundItem.query.count()
+        total_users = User.query.count()
+        
+        # Get lost and found counts
+        lost_items_count = LostFoundItem.query.filter_by(status='lost').count()
+        found_items_count = LostFoundItem.query.filter_by(status='found').count()
+        
+        # Get today's activity
+        today = datetime.now().date()
+        today_items = Item.query.filter(
+            db.func.date(Item.date) == today
+        ).count()
+        today_lost_found = LostFoundItem.query.filter(
+            db.func.date(LostFoundItem.date) == today
+        ).count()
+        
+        # Get recent items (last 7 days)
+        seven_days_ago = datetime.now().date() - timedelta(days=7)
+        recent_items_count = LostFoundItem.query.filter(
+            LostFoundItem.date >= seven_days_ago
+        ).count()
+        
+        # Calculate success rate (found items / total lost+found items)
+        success_rate = 0
+        if total_lost_found_items > 0:
+            success_rate = round((found_items_count / total_lost_found_items) * 100, 1)
+        
+        # Get most active categories
+        category_counts = db.session.query(
+            LostFoundItem.category,
+            db.func.count(LostFoundItem.id).label('count')
+        ).group_by(LostFoundItem.category).order_by(db.func.count(LostFoundItem.id).desc()).limit(5).all()
+        
+        # Get recent activity (last 5 items)
+        recent_activity = LostFoundItem.query.order_by(
+            LostFoundItem.created_at.desc()
+        ).limit(5).all()
+        
+        # Get user info for template
+        user = User.query.get(session.get('user_id'))
+        is_admin = user.is_admin_user() if user else False
+        
+        return render_template('about.html',
+                             total_items=total_items,
+                             total_lost_found_items=total_lost_found_items,
+                             total_users=total_users,
+                             lost_items_count=lost_items_count,
+                             found_items_count=found_items_count,
+                             today_items=today_items,
+                             today_lost_found=today_lost_found,
+                             recent_items_count=recent_items_count,
+                             success_rate=success_rate,
+                             category_counts=category_counts,
+                             recent_activity=recent_activity,
+                             is_admin=is_admin)
     except Exception as e:
         app.logger.error(f'Error rendering about template: {str(e)}')
         flash('Error loading page. Please try again.', 'error')
@@ -768,9 +830,9 @@ def require_admin():
     return user.is_admin_user()
 
 
-@app.route('/admin/files')
+@app.route('/admin/files', methods=['GET', 'POST'])
 def admin_files():
-    """Admin-only page to view created files"""
+    """Admin-only page to view all users and manage them"""
     # Check if user is logged in
     if 'user_id' not in session:
         flash('Please login to access this page', 'warning')
@@ -782,23 +844,37 @@ def admin_files():
         return redirect(url_for('dashboard'))
     
     try:
-        # List of created utility files
-        created_files = [
-        {
-            'name': 'reset_user_password.py',
-            'description': 'Password reset utility - Reset user passwords',
-            'usage': 'python reset_user_password.py reset <username> <password>',
-            'category': 'Utility Script'
-        },
-        {
-            'name': 'view_users.py',
-            'description': 'User information viewer - View all users and test passwords',
-            'usage': 'python view_users.py list',
-            'category': 'Utility Script'
-        }
-        ]
+        # Handle password reset
+        if request.method == 'POST':
+            action = request.form.get('action')
+            if action == 'reset_password':
+                user_id = int(request.form.get('user_id'))
+                new_password = request.form.get('new_password', '').strip()
+                
+                if not new_password:
+                    flash('Password cannot be empty', 'error')
+                    return redirect(url_for('admin_files'))
+                
+                user = User.query.get(user_id)
+                if user:
+                    user.set_password(new_password)
+                    db.session.commit()
+                    flash(f'Password reset successfully for user: {user.username}', 'success')
+                else:
+                    flash('User not found', 'error')
+                return redirect(url_for('admin_files'))
         
-        return render_template('admin_files.html', files=created_files, username=session.get('username', 'Admin'))
+        # Get all users from database
+        all_users = User.query.order_by(User.created_at.desc()).all()
+        
+        # Get user info for template
+        current_user = User.query.get(session.get('user_id'))
+        is_admin = current_user.is_admin_user() if current_user else False
+        
+        return render_template('admin_files.html', 
+                             users=all_users,
+                             username=session.get('username', 'Admin'),
+                             is_admin=is_admin)
     except Exception as e:
         app.logger.error(f'Error in admin_files route: {str(e)}')
         flash('Error loading page. Please try again.', 'error')
@@ -806,6 +882,64 @@ def admin_files():
 
 
 # API Routes
+@app.route('/api/search', methods=['GET'])
+def api_search():
+    """API endpoint for searching lost/found items"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Get filter parameters
+    search_term = request.args.get('q', '').strip()
+    category = request.args.get('category', '')
+    status = request.args.get('status', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    location = request.args.get('location', '').strip()
+    
+    # Build query for LostFoundItem table
+    query = LostFoundItem.query
+    
+    if search_term:
+        query = query.filter(
+            db.or_(
+                LostFoundItem.name.ilike(f'%{search_term}%'),
+                LostFoundItem.description.ilike(f'%{search_term}%'),
+                LostFoundItem.location.ilike(f'%{search_term}%')
+            )
+        )
+    
+    if category:
+        query = query.filter(LostFoundItem.category == category)
+    
+    if status:
+        query = query.filter(LostFoundItem.status == status)
+    
+    if date_from:
+        query = query.filter(LostFoundItem.date >= datetime.strptime(date_from, '%Y-%m-%d').date())
+    
+    if date_to:
+        query = query.filter(LostFoundItem.date <= datetime.strptime(date_to, '%Y-%m-%d').date())
+    
+    if location:
+        query = query.filter(LostFoundItem.location.ilike(f'%{location}%'))
+    
+    items = query.order_by(LostFoundItem.date.desc()).all()
+    
+    return jsonify([{
+        'id': item.id,
+        'name': item.name,
+        'category': item.category,
+        'status': item.status,
+        'date': item.date.isoformat(),
+        'location': item.location,
+        'description': item.description,
+        'contact': item.contact,
+        'phone': item.phone,
+        'student_id': item.student_id,
+        'program': item.program,
+        'department': item.department
+    } for item in items])
+
 @app.route('/api/items', methods=['GET', 'POST'])
 def api_items():
     """API endpoint for items"""
@@ -815,15 +949,13 @@ def api_items():
     if request.method == 'GET':
         items = Item.query.all()
         return jsonify([{
-            'id': item.id,
             'name': item.name,
             'category': item.category,
-            'status': item.status,
             'date': item.date.isoformat(),
-            'location': item.location,
             'description': item.description,
-            'contact': item.contact,
-            'icon': item.icon
+            'color': item.color,
+            'brand': item.brand,
+            'value': item.value
         } for item in items])
     
     elif request.method == 'POST':
@@ -831,47 +963,44 @@ def api_items():
         new_item = Item(
             name=data['name'],
             category=data['category'],
-            status=data['status'],
             date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
-            location=data['location'],
             description=data['description'],
-            contact=data['contact'],
-            icon=get_category_icon(data['category'])
+            color=data.get('color'),
+            brand=data.get('brand'),
+            value=data.get('value')
         )
         db.session.add(new_item)
         db.session.commit()
-        return jsonify({'success': True, 'id': new_item.id}), 201
+        return jsonify({'success': True, 'name': new_item.name}), 201
 
 
-@app.route('/api/items/<int:item_id>', methods=['GET', 'PUT', 'DELETE'])
-def api_item(item_id):
-    """API endpoint for single item"""
+@app.route('/api/items/<item_name>', methods=['GET', 'PUT', 'DELETE'])
+def api_item(item_name):
+    """API endpoint for single item (using name as primary key)"""
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
-    item = Item.query.get_or_404(item_id)
+    item = Item.query.get_or_404(item_name)
     
     if request.method == 'GET':
         return jsonify({
-            'id': item.id,
             'name': item.name,
             'category': item.category,
-            'status': item.status,
             'date': item.date.isoformat(),
-            'location': item.location,
             'description': item.description,
-            'contact': item.contact,
-            'icon': item.icon
+            'color': item.color,
+            'brand': item.brand,
+            'value': item.value
         })
     
     elif request.method == 'PUT':
         data = request.json
-        item.name = data.get('name', item.name)
         item.category = data.get('category', item.category)
-        item.status = data.get('status', item.status)
-        item.location = data.get('location', item.location)
+        item.date = datetime.strptime(data.get('date', item.date.isoformat()), '%Y-%m-%d').date() if data.get('date') else item.date
         item.description = data.get('description', item.description)
-        item.contact = data.get('contact', item.contact)
+        item.color = data.get('color', item.color)
+        item.brand = data.get('brand', item.brand)
+        item.value = data.get('value', item.value)
         db.session.commit()
         return jsonify({'success': True})
     
@@ -881,42 +1010,6 @@ def api_item(item_id):
         return jsonify({'success': True})
 
 
-@app.route('/api/invoices', methods=['GET', 'POST'])
-def api_invoices():
-    """API endpoint for invoices"""
-    if 'user_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    if request.method == 'GET':
-        invoices = Invoice.query.all()
-        return jsonify([{
-            'id': invoice.id,
-            'invoice_number': invoice.invoice_number,
-            'date': invoice.date.isoformat(),
-            'due_date': invoice.due_date.isoformat(),
-            'status': invoice.status,
-            'client_name': invoice.client_name,
-            'client_email': invoice.client_email,
-            'total_amount': invoice.total_amount
-        } for invoice in invoices])
-    
-    elif request.method == 'POST':
-        data = request.json
-        new_invoice = Invoice(
-            invoice_number=generate_invoice_number(),
-            date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
-            due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date(),
-            status=data.get('status', 'pending'),
-            client_name=data['client_name'],
-            client_email=data['client_email'],
-            item_id=data['item_id'],
-            total_amount=data['total_amount']
-        )
-        db.session.add(new_invoice)
-        db.session.commit()
-        return jsonify({'success': True, 'id': new_invoice.id}), 201
-
-
 @app.route('/api/stats')
 def api_stats():
     """API endpoint for dashboard statistics"""
@@ -924,15 +1017,11 @@ def api_stats():
         return jsonify({'error': 'Unauthorized'}), 401
     
     total_items = Item.query.count()
-    lost_items = Item.query.filter_by(status='lost').count()
-    found_items = Item.query.filter_by(status='found').count()
-    total_invoices = Invoice.query.count()
     
     return jsonify({
         'total_items': total_items,
-        'lost_items': lost_items,
-        'found_items': found_items,
-        'total_invoices': total_invoices
+        'lost_items': 0,  # Status field removed
+        'found_items': 0  # Status field removed
     })
 
 
@@ -980,46 +1069,7 @@ def init_db():
             db.session.commit()
             print("Default users created successfully!")
         
-        # Add sample items if database is empty
-        if Item.query.count() == 0:
-            sample_items = [
-                Item(
-                    name="iPhone 13 Pro",
-                    category="electronics",
-                    status="lost",
-                    date=datetime(2024, 1, 15).date(),
-                    location="Main Library, 2nd Floor",
-                    description="Black iPhone 13 Pro with blue case. Has a small scratch on the back.",
-                    contact="john.doe@bubt.edu.bd",
-                    icon="fas fa-mobile-alt"
-                ),
-                Item(
-                    name="Gold Necklace",
-                    category="jewelry",
-                    status="found",
-                    date=datetime(2024, 1, 14).date(),
-                    location="Student Center, Cafeteria",
-                    description="Delicate gold chain necklace with a small pendant.",
-                    contact="security@bubt.edu.bd",
-                    icon="fas fa-gem"
-                ),
-                Item(
-                    name="Car Keys",
-                    category="keys",
-                    status="lost",
-                    date=datetime(2024, 1, 13).date(),
-                    location="Parking Lot A",
-                    description="Toyota car keys with a black keychain.",
-                    contact="jane.smith@bubt.edu.bd",
-                    icon="fas fa-key"
-                ),
-            ]
-            
-            for item in sample_items:
-                db.session.add(item)
-            
-            db.session.commit()
-            print("Sample items created successfully!")
+        # Sample items creation removed - items will be created manually through the form
 
 
 if __name__ == '__main__':

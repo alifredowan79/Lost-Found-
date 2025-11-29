@@ -15,10 +15,11 @@
         </div>
         <ul class="nav-menu">
             <li><a href="{{ url_for('dashboard') }}" class="nav-link active">Dashboard</a></li>
+            {% if is_admin %}
             <li><a href="{{ url_for('create_item') }}" class="nav-link">Create Item</a></li>
+            {% endif %}
             <li><a href="{{ url_for('report') }}" class="nav-link">Report Items</a></li>
             <li><a href="{{ url_for('search') }}" class="nav-link">Search Items</a></li>
-            <li><a href="{{ url_for('invoice') }}" class="nav-link">Generate Invoice</a></li>
             <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
             {% if is_admin %}
             <li><a href="{{ url_for('admin_files') }}" class="nav-link" style="color: #f59e0b;">
@@ -50,7 +51,7 @@
                     Welcome to BUBT Lost & Found Dashboard
                 </h1>
                 <p class="hero-description">
-                    Manage your lost and found items, generate invoices, and track system activities 
+                    Manage your lost and found items and track system activities 
                     with our comprehensive dashboard solution.
                 </p>
                 <div class="welcome-message">
@@ -70,9 +71,11 @@
                     <button class="btn btn-outline" id="refresh-stats-btn">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
+                    {% if is_admin %}
                     <button class="btn btn-primary" onclick="window.location.href='{{ url_for('create_item') }}'">
                         <i class="fas fa-plus"></i> Add New Item
                     </button>
+                    {% endif %}
                 </div>
             </div>
             
@@ -85,7 +88,7 @@
                     <div class="stat-content">
                         <h3 id="total-items">{{ total_items }}</h3>
                         <p>Total Items</p>
-                        <small class="stat-change positive">+12% from last month</small>
+                        <small class="stat-change positive">Live data</small>
                     </div>
                 </div>
                 <div class="stat-card lost">
@@ -95,7 +98,7 @@
                     <div class="stat-content">
                         <h3 id="lost-items">{{ lost_items }}</h3>
                         <p>Lost Items</p>
-                        <small class="stat-change negative">+5% from last month</small>
+                        <small class="stat-change negative">Real-time</small>
                     </div>
                 </div>
                 <div class="stat-card found">
@@ -105,17 +108,17 @@
                     <div class="stat-content">
                         <h3 id="found-items">{{ found_items }}</h3>
                         <p>Found Items</p>
-                        <small class="stat-change positive">+18% from last month</small>
+                        <small class="stat-change positive">Real-time</small>
                     </div>
                 </div>
-                <div class="stat-card invoice">
-                    <div class="stat-icon invoice">
-                        <i class="fas fa-file-invoice"></i>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-file-alt"></i>
                     </div>
                     <div class="stat-content">
-                        <h3 id="total-invoices">{{ total_invoices }}</h3>
-                        <p>Total Invoices</p>
-                        <small class="stat-change positive">+25% from last month</small>
+                        <h3 id="total-reports">{{ total_lost_found }}</h3>
+                        <p>Total Reports</p>
+                        <small class="stat-change positive">Live data</small>
                     </div>
                 </div>
             </div>
@@ -125,7 +128,6 @@
                 <button class="main-tab-btn active" data-tab="overview">Overview</button>
                 <button class="main-tab-btn" data-tab="management">Item Management</button>
                 <button class="main-tab-btn" data-tab="reports">Reports</button>
-                <button class="main-tab-btn" data-tab="invoices">Invoices</button>
             </div>
 
             <!-- Tab Contents -->
@@ -136,26 +138,32 @@
                         <div class="overview-card">
                             <h3><i class="fas fa-history"></i> Recent Activity</h3>
                             <div class="activity-list" id="activity-list">
-                                {% for item in recent_items[:5] %}
-                                <div class="activity-item">
-                                    <i class="fas fa-{{ 'exclamation-triangle' if item.status == 'lost' else 'check-circle' }}"></i>
-                                    <span>{{ item.status|title }} item: {{ item.name }}</span>
-                                    <small>{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else item.date }}</small>
-                                </div>
-                                {% endfor %}
+                                {% if recent_lost_found %}
+                                    {% for item in recent_lost_found[:5] %}
+                                    <div class="activity-item">
+                                        <i class="fas fa-{{ 'exclamation-triangle' if item.status == 'lost' else 'check-circle' }}"></i>
+                                        <span>{{ item.status|title }}: {{ item.name }}</span>
+                                        <small>{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else item.date.strftime('%Y-%m-%d') }}</small>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="activity-item">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>No recent activity</span>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="overview-card">
                             <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
                             <div class="quick-actions">
+                                {% if is_admin %}
                                 <button class="btn btn-primary" onclick="window.location.href='{{ url_for('create_item') }}'">
                                     <i class="fas fa-plus"></i> Create New Item
                                 </button>
+                                {% endif %}
                                 <button class="btn btn-secondary" onclick="window.location.href='{{ url_for('search') }}'">
                                     <i class="fas fa-search"></i> Search Items
-                                </button>
-                                <button class="btn btn-success" onclick="window.location.href='{{ url_for('invoice') }}'">
-                                    <i class="fas fa-file-invoice"></i> Generate Invoice
                                 </button>
                                 <button class="btn btn-outline" onclick="window.location.href='{{ url_for('report') }}'">
                                     <i class="fas fa-flag"></i> Report Issue
@@ -199,10 +207,6 @@
                                     <span class="summary-number" id="today-found">{{ today_found }}</span>
                                     <span class="summary-label">Items Found</span>
                                 </div>
-                                <div class="summary-item">
-                                    <span class="summary-number" id="today-invoices">{{ today_invoices }}</span>
-                                    <span class="summary-label">Invoices</span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -218,6 +222,7 @@
                             </button>
                         </div>
                         <div class="module-tab-content active" id="add-item">
+                            {% if is_admin %}
                             <form id="add-item-form" class="dashboard-form" method="POST" action="{{ url_for('create_item') }}">
                                 <div class="form-row">
                                     <div class="form-group">
@@ -265,6 +270,13 @@
                                 </div>
                                 <button type="submit" class="btn btn-primary">Add Item</button>
                             </form>
+                            {% else %}
+                            <div class="empty-state" style="padding: 40px; text-align: center; color: #64748b;">
+                                <i class="fas fa-lock" style="font-size: 3em; margin-bottom: 10px; color: #cbd5e1;"></i>
+                                <h3>Admin Access Required</h3>
+                                <p>Only admin users can create items. Please contact an administrator.</p>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -301,17 +313,6 @@
                     </div>
                 </div>
 
-                <!-- Invoices Tab -->
-                <div id="invoices-tab" class="main-tab-content">
-                    <div class="module-content" id="invoice-generation">
-                        <div class="module-header">
-                            <h3>Invoice Generation</h3>
-                            <button class="btn btn-primary" onclick="window.location.href='{{ url_for('invoice') }}'">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </section>
@@ -321,48 +322,105 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 <script>
-    // Load items via API
+    // Load lost and found items via API (from LostFoundItem table)
     async function loadItems() {
-        const response = await fetch('{{ url_for("api_items") }}');
-        const items = await response.json();
-        
-        const lostItems = items.filter(item => item.status === 'lost');
-        const foundItems = items.filter(item => item.status === 'found');
-        
-        // Populate grids
-        document.getElementById('lost-items-grid').innerHTML = lostItems.map(item => 
-            `<div class="lost-item-card">
-                <div class="item-card-header">
-                    <div class="item-card-title">${item.name}</div>
-                    <span class="item-card-status lost">LOST</span>
-                </div>
-                <div class="item-card-details">
-                    <p><strong>Category:</strong> ${item.category}</p>
-                    <p><strong>Date Lost:</strong> ${item.date}</p>
-                    <p><strong>Location:</strong> ${item.location}</p>
-                    <p><strong>Contact:</strong> ${item.contact}</p>
-                </div>
-            </div>`
-        ).join('');
-        
-        document.getElementById('found-items-grid').innerHTML = foundItems.map(item => 
-            `<div class="found-item-card">
-                <div class="item-card-header">
-                    <div class="item-card-title">${item.name}</div>
-                    <span class="item-card-status found">FOUND</span>
-                </div>
-                <div class="item-card-details">
-                    <p><strong>Category:</strong> ${item.category}</p>
-                    <p><strong>Date Found:</strong> ${item.date}</p>
-                    <p><strong>Location:</strong> ${item.location}</p>
-                    <p><strong>Contact:</strong> ${item.contact}</p>
-                </div>
-            </div>`
-        ).join('');
+        try {
+            // Fetch lost items
+            const lostResponse = await fetch('{{ url_for("search") }}?status=lost');
+            const lostText = await lostResponse.text();
+            
+            // Fetch found items
+            const foundResponse = await fetch('{{ url_for("search") }}?status=found');
+            const foundText = await foundResponse.text();
+            
+            // Use the search API endpoint that returns JSON
+            const searchLostResponse = await fetch('{{ url_for("api_search") }}?status=lost');
+            const lostItems = await searchLostResponse.json();
+            
+            const searchFoundResponse = await fetch('{{ url_for("api_search") }}?status=found');
+            const foundItems = await searchFoundResponse.json();
+            
+            // Populate lost items grid
+            const lostGrid = document.getElementById('lost-items-grid');
+            if (lostGrid) {
+                if (lostItems.length === 0) {
+                    lostGrid.innerHTML = '<div class="empty-state"><p>No lost items reported yet</p></div>';
+                } else {
+                    lostGrid.innerHTML = lostItems.slice(0, 10).map(item => 
+                        `<div class="lost-item-card">
+                            <div class="item-card-header">
+                                <div class="item-card-title">${escapeHtml(item.name)}</div>
+                                <span class="item-card-status lost">LOST</span>
+                            </div>
+                            <div class="item-card-details">
+                                <p><strong>Category:</strong> ${escapeHtml(item.category)}</p>
+                                <p><strong>Date Lost:</strong> ${formatDate(item.date)}</p>
+                                <p><strong>Location:</strong> ${escapeHtml(item.location)}</p>
+                                <p><strong>Contact:</strong> ${escapeHtml(item.contact)}</p>
+                                ${item.phone ? `<p><strong>Phone:</strong> ${escapeHtml(item.phone)}</p>` : ''}
+                            </div>
+                        </div>`
+                    ).join('');
+                }
+            }
+            
+            // Populate found items grid
+            const foundGrid = document.getElementById('found-items-grid');
+            if (foundGrid) {
+                if (foundItems.length === 0) {
+                    foundGrid.innerHTML = '<div class="empty-state"><p>No found items reported yet</p></div>';
+                } else {
+                    foundGrid.innerHTML = foundItems.slice(0, 10).map(item => 
+                        `<div class="found-item-card">
+                            <div class="item-card-header">
+                                <div class="item-card-title">${escapeHtml(item.name)}</div>
+                                <span class="item-card-status found">FOUND</span>
+                            </div>
+                            <div class="item-card-details">
+                                <p><strong>Category:</strong> ${escapeHtml(item.category)}</p>
+                                <p><strong>Date Found:</strong> ${formatDate(item.date)}</p>
+                                <p><strong>Location:</strong> ${escapeHtml(item.location)}</p>
+                                <p><strong>Contact:</strong> ${escapeHtml(item.contact)}</p>
+                                ${item.phone ? `<p><strong>Phone:</strong> ${escapeHtml(item.phone)}</p>` : ''}
+                            </div>
+                        </div>`
+                    ).join('');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading items:', error);
+        }
     }
     
+    // Helper functions
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+    
+    // Refresh stats button
     document.addEventListener('DOMContentLoaded', function() {
         loadItems();
+        
+        // Refresh button
+        const refreshBtn = document.getElementById('refresh-stats-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                location.reload();
+            });
+        }
     });
 </script>
 {% endblock %}
