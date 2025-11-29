@@ -77,10 +77,22 @@ function setupEventListeners() {
         forgotPasswordForm.addEventListener('submit', handleForgotPassword);
     }
     
-    // Sign up form
+    // Sign up form - use event delegation in case modal is loaded dynamically
+    document.addEventListener('submit', function(e) {
+        if (e.target && e.target.id === 'signUpForm') {
+            console.log('Sign up form submitted via event delegation');
+            handleSignUp(e);
+        }
+    });
+    
+    // Also attach directly if form exists
     const signUpForm = document.getElementById('signUpForm');
     if (signUpForm) {
+        console.log('Sign up form found, attaching direct event listener...');
         signUpForm.addEventListener('submit', handleSignUp);
+        console.log('Sign up form event listener attached');
+    } else {
+        console.warn('Sign up form not found initially (will use event delegation)');
     }
     
     // Social login buttons
@@ -119,10 +131,25 @@ function togglePasswordVisibility() {
 // Show field error
 function showFieldError(fieldName, message) {
     const field = document.getElementById(fieldName);
-    const errorElement = document.getElementById(fieldName + 'Error');
+    let errorElement = document.getElementById(fieldName + 'Error');
     
-    if (field && errorElement) {
+    if (field) {
         field.classList.add('error');
+        
+        // Create error element if it doesn't exist
+        if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.id = fieldName + 'Error';
+            errorElement.className = 'error-message';
+            // Insert after the input container
+            const inputContainer = field.closest('.input-container') || field.parentElement;
+            if (inputContainer) {
+                inputContainer.appendChild(errorElement);
+            } else {
+                field.parentElement.insertAdjacentElement('afterend', errorElement);
+            }
+        }
+        
         errorElement.textContent = message;
         errorElement.classList.add('show');
         
@@ -131,6 +158,10 @@ function showFieldError(fieldName, message) {
         setTimeout(() => {
             field.style.animation = '';
         }, 500);
+    } else {
+        // If field not found, show alert
+        console.error(`Field ${fieldName} not found`);
+        alert(message);
     }
 }
 
@@ -166,6 +197,17 @@ function openSignUpModal(e) {
     if (modal) {
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        
+        // Ensure form has event listener when modal opens
+        const signUpForm = document.getElementById('signUpForm');
+        if (signUpForm) {
+            // Remove existing listeners to avoid duplicates
+            const newForm = signUpForm.cloneNode(true);
+            signUpForm.parentNode.replaceChild(newForm, signUpForm);
+            // Re-attach listener
+            newForm.addEventListener('submit', handleSignUp);
+            console.log('Sign up form event listener re-attached when modal opened');
+        }
     }
 }
 
@@ -211,6 +253,7 @@ function handleForgotPassword(e) {
 // Handle sign up
 function handleSignUp(e) {
     e.preventDefault();
+    console.log('Sign up form submitted!');
     
     const formData = new FormData(e.target);
     const firstName = formData.get('firstName');
@@ -220,64 +263,153 @@ function handleSignUp(e) {
     const confirmPassword = formData.get('confirmPassword');
     const agreeTerms = formData.get('agreeTerms');
     
+    console.log('Form data:', { firstName, lastName, email, password: password ? '***' : '', agreeTerms });
+    
     // Clear previous errors
     clearAllErrors();
     
     // Validate form
     if (!validateSignUpForm(firstName, lastName, email, password, confirmPassword, agreeTerms)) {
+        console.log('Validation failed');
         return;
     }
     
+    console.log('Validation passed, proceeding with registration...');
+    
+    // Generate username from email if not provided
+    let username = email.split('@')[0] || '';
+    
+    // If username is too short, use first name + last name
+    if (username.length < 3) {
+        username = (firstName + lastName).toLowerCase().replace(/\s+/g, '');
+    }
+    
+    // If still too short, add numbers
+    if (username.length < 3) {
+        username = username + '123';
+    }
+    
+    // Ensure username is at least 3 characters
+    username = username.substring(0, 20); // Limit to 20 chars
+    
+    console.log('Registration data:', { username, email, password: '***' });
+    
+    // Create form data for backend
+    const registrationData = new FormData();
+    registrationData.append('username', username);
+    registrationData.append('email', email);
+    registrationData.append('password', password);
+    registrationData.append('confirmPassword', confirmPassword);
+    registrationData.append('firstName', firstName || '');
+    registrationData.append('lastName', lastName || '');
+    
     // Show loading state
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = 'Creating Account...';
+    if (!submitBtn) {
+        console.error('Submit button not found!');
+        alert('Error: Submit button not found. Please refresh the page.');
+        return;
+    }
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
     submitBtn.disabled = true;
     
-    // Simulate account creation
-    setTimeout(() => {
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
+    // Submit to backend
+    console.log('Submitting registration to /register...');
+    fetch('/register', {
+        method: 'POST',
+        body: registrationData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
         
-        // Show success message
-        alert('Account created successfully! You can now log in.');
-        closeModal();
-        e.target.reset();
-    }, 2000);
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json().then(data => {
+                console.log('Response data:', data);
+                return data;
+            });
+        } else {
+            // If not JSON, read as text to see what happened
+            return response.text().then(text => {
+                console.error('Non-JSON response:', text.substring(0, 200));
+                throw new Error('Server returned non-JSON response. Please check the console for details.');
+            });
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('Registration successful!');
+            alert(data.message || 'Account created successfully! You can now log in.');
+            closeModal();
+            e.target.reset();
+            // Optionally redirect to login
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            console.error('Registration failed:', data.message);
+            alert(data.message || 'Registration failed. Please try again.');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Registration error:', error);
+        alert('An error occurred: ' + (error.message || 'Please try again. Check the browser console for details.'));
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
 }
 
 // Validate sign up form
 function validateSignUpForm(firstName, lastName, email, password, confirmPassword, agreeTerms) {
     let isValid = true;
+    const errors = [];
     
     if (!firstName || firstName.trim() === '') {
         showFieldError('firstName', 'First name is required');
+        errors.push('First name is required');
         isValid = false;
     }
     
     if (!lastName || lastName.trim() === '') {
         showFieldError('lastName', 'Last name is required');
+        errors.push('Last name is required');
         isValid = false;
     }
     
     if (!email || !isValidEmail(email)) {
         showFieldError('signupEmail', 'Please enter a valid email address');
+        errors.push('Please enter a valid email address');
         isValid = false;
     }
     
-    if (!password || password.length < 8) {
-        showFieldError('signupPassword', 'Password must be at least 8 characters');
+    if (!password || password.length < 6) {
+        showFieldError('signupPassword', 'Password must be at least 6 characters');
+        errors.push('Password must be at least 6 characters');
         isValid = false;
     }
     
     if (password !== confirmPassword) {
         showFieldError('confirmPassword', 'Passwords do not match');
+        errors.push('Passwords do not match');
         isValid = false;
     }
     
     if (!agreeTerms) {
-        alert('Please agree to the Terms of Service and Privacy Policy');
+        errors.push('Please agree to the Terms of Service and Privacy Policy');
         isValid = false;
+    }
+    
+    // Show all errors in alert if validation fails
+    if (!isValid && errors.length > 0) {
+        alert('Please fix the following errors:\n' + errors.join('\n'));
     }
     
     return isValid;

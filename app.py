@@ -309,6 +309,8 @@ def register():
         first_name = request.form.get('firstName', '').strip()
         last_name = request.form.get('lastName', '').strip()
         
+        app.logger.info(f'Registration attempt - Username: {username}, Email: {email}')
+        
         # Validate input
         errors = []
         
@@ -333,8 +335,9 @@ def register():
             errors.append('Email already registered')
         
         if errors:
-            if request.is_json:
-                return jsonify({'success': False, 'message': '; '.join(errors)}), 400
+            error_message = '; '.join(errors)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                return jsonify({'success': False, 'message': error_message}), 400
             for error in errors:
                 flash(error, 'error')
             return render_template('register.html')
@@ -350,7 +353,9 @@ def register():
             db.session.add(new_user)
             db.session.commit()
             
-            if request.is_json:
+            app.logger.info(f'User registered successfully - Username: {username}, Email: {email}')
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
                 return jsonify({
                     'success': True,
                     'message': 'Registration successful! You can now login.',
@@ -362,8 +367,9 @@ def register():
         
         except Exception as e:
             db.session.rollback()
+            app.logger.error(f'Registration error: {str(e)}')
             error_msg = 'Registration failed. Please try again.'
-            if request.is_json:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
                 return jsonify({'success': False, 'message': error_msg}), 500
             flash(error_msg, 'error')
             return render_template('register.html')
@@ -659,10 +665,14 @@ def create_item():
         user = User.query.get(session.get('user_id'))
         is_admin = user.is_admin_user() if user else False
         
+        # Get available items (status='found') - limit to 12 most recent
+        available_items = Item.query.filter_by(status='found').order_by(Item.date.desc()).limit(12).all()
+        
         print(f"[DEBUG] Rendering create-item.html for user: {session.get('username')}")
         result = render_template('create-item.html', 
                              username=session.get('username', 'User'),
-                             is_admin=is_admin)
+                             is_admin=is_admin,
+                             available_items=available_items)
         print(f"[DEBUG] Template rendered successfully, length: {len(result)}")
         return result
     except Exception as e:
@@ -1014,5 +1024,9 @@ def init_db():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Use PORT environment variable if available (for production)
+    port = int(os.environ.get('PORT', 5000))
+    # Only enable debug in development
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    app.run(debug=debug, host='0.0.0.0', port=port)
 
