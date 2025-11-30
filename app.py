@@ -1,9 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
-import json
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -163,32 +161,6 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-
-
-# Utility Functions
-def get_category_icon(category):
-    """Get FontAwesome icon for category"""
-    icon_map = {
-        'electronics': 'fas fa-laptop',
-        'jewelry': 'fas fa-gem',
-        'clothing': 'fas fa-tshirt',
-        'documents': 'fas fa-file-alt',
-        'keys': 'fas fa-key',
-        'books': 'fas fa-book',
-        'bags': 'fas fa-briefcase',
-        'watches': 'fas fa-clock',
-        'other': 'fas fa-question-circle'
-    }
-    return icon_map.get(category, 'fas fa-question-circle')
-
-
-def format_date(date_obj):
-    """Format date for display"""
-    if isinstance(date_obj, str):
-        date_obj = datetime.strptime(date_obj, '%Y-%m-%d')
-    return date_obj.strftime('%b %d, %Y')
-
-
 
 
 # Routes
