@@ -124,12 +124,6 @@ DB_PASSWORD=your_postgres_password
 # Secret Key (Change this in production!)
 SECRET_KEY=your-secret-key-change-in-production
 
-# Optional: Use SQLite instead of PostgreSQL
-# USE_SQLITE=false
-
-# Optional: Custom SQLite path (if using SQLite)
-# SQLITE_DB_PATH=lost_found.db
-
 # Optional: Full Database URL (alternative to individual variables)
 # DATABASE_URL=postgresql://postgres:password@localhost:5432/lost_found
 ```
@@ -390,12 +384,12 @@ python -c "from app import init_db; init_db()"
 
 ## 📝 Additional Notes
 
-### Database Priority
-The application checks database configuration in this order:
-1. `USE_SQLITE` flag (if set to true, uses SQLite)
-2. `DATABASE_URL` environment variable
-3. Individual PostgreSQL variables (`DB_HOST`, `DB_PORT`, etc.)
-4. SQLite fallback (if PostgreSQL not configured)
+### Database Configuration
+The application requires PostgreSQL database. Configuration is checked in this order:
+1. `DATABASE_URL` environment variable (full connection string)
+2. Individual PostgreSQL variables (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`)
+
+**Note:** PostgreSQL is required. SQLite is not supported.
 
 ### Security Notes
 - Passwords are stored in **plain text** (for admin visibility)

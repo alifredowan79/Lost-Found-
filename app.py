@@ -21,17 +21,14 @@ def env_bool(var_name, default=False):
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 
-# Database configuration
-# Priority: Explicit SQLite flag > DATABASE_URL > PostgreSQL env vars > SQLite fallback
+# Database configuration - PostgreSQL only
 database_url = os.getenv('DATABASE_URL')
-force_sqlite = env_bool('USE_SQLITE')
-use_sqlite = False
 
-if not force_sqlite and database_url:
-    # Database URL provided explicitly (supports PostgreSQL, etc.)
+if database_url:
+    # Database URL provided explicitly
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     print("Using database from DATABASE_URL")
-elif not force_sqlite and os.getenv('DB_HOST'):
+elif os.getenv('DB_HOST'):
     # PostgreSQL from individual environment variables
     db_user = os.getenv('DB_USER', 'postgres')
     db_password = os.getenv('DB_PASSWORD', '')
@@ -41,39 +38,23 @@ elif not force_sqlite and os.getenv('DB_HOST'):
     app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
     print(f"Connected to PostgreSQL database: {db_name} on {db_host}:{db_port}")
 else:
-    # SQLite configuration (explicit or fallback)
-    sqlite_path = os.getenv('SQLITE_DB_PATH', os.path.join(basedir, 'lost_found.db'))
-    if sqlite_path.startswith('sqlite:'):
-        sqlite_uri = sqlite_path
-    else:
-        sqlite_uri = f"sqlite:///{sqlite_path}"
-    app.config['SQLALCHEMY_DATABASE_URI'] = sqlite_uri
-    use_sqlite = True
-    if force_sqlite:
-        print(f"Using SQLite database as requested via USE_SQLITE (path: {sqlite_path}).")
-    else:
-        print("WARNING: PostgreSQL not configured. Using SQLite database.")
-        print("TIP: To use PostgreSQL, create a .env file with DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD")
+    # PostgreSQL is required
+    raise ValueError(
+        "PostgreSQL database configuration is required. "
+        "Please set either DATABASE_URL or provide DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD "
+        "in your .env file."
+    )
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configure engine options based on database type
-if use_sqlite:
-    # SQLite-specific configuration
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'connect_args': {
-            'check_same_thread': False  # Allow SQLite to work with Flask's threading
-        }
+# PostgreSQL-specific configuration
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'connect_args': {
+        'connect_timeout': 10
     }
-else:
-    # PostgreSQL-specific configuration
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
-        'connect_args': {
-            'connect_timeout': 10
-        }
-    }
+}
 
 db = SQLAlchemy(app)
 
